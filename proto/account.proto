@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+option go_package = "security";
+
+// A system account to allow access for a subject
+message Account {
+    // `json:"-"`
+    string id = 1;
+    // unique name
+    string name = 2;
+    // `json:"-"`
+    string salt = 3;
+    // `json:"-"`
+    string hash = 4;
+    // []role.proto:Role.name
+    repeated string roles = 5;
+    State state = 6;
+    enum State {
+        nonstate = 0; // not used
+        // Account_CREATE,Account_INITIALIZE
+        Initialized = 1;
+        // Account_ACTIVATE,Account_UPDATE_PASSWORD
+        Activated = 2;
+        // Account_LOCK
+        Locked = 3;
+        // Account_DEACTIVATE
+        Deactivated = 4;
+    }
+    enum Action {
+        CREATE = 0;
+        READ = 1;
+        UPDATE_PASSWORD = 2;
+        ACTIVATE = 3;
+        DEACTIVATE = 4;
+        LOCK = 5;
+        INITIALIZE = 6;
+    }
+}

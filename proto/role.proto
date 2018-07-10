@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+option go_package = "security";
+
+import "permission.proto";
+
+// A named collection of permissions
+message Role {
+    // `json:"-"`
+    string id = 1;
+    // unique name
+    string name = 2;
+    repeated Permission permissions = 4;
+    State state = 5;
+    enum State {
+        nonstate = 0; // not used
+        // Role_CREATE
+        Initialized = 1;
+        // Role_ACTIVATE
+        Activated = 2;
+        // Role_DEACTIVATE
+        Deactivated = 3;
+    }
+    enum Action {
+        CREATE = 0;
+        READ = 1;
+        UPDATE = 2;
+        DELETE = 3;
+        ACTIVATE = 4;
+        DEACTIVATE = 5;
+    }
+}

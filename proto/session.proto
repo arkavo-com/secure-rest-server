@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+option go_package = "security";
+
+import "permission.proto";
+
+// A container of time-limited permissions shared with a subject
+message Session {
+    // `json:"-"`
+    string id = 1;
+    // privately shared identifier `json:"-"`
+    string sessionId = 2;
+    // account.proto:Account.name
+    string account = 3;
+    string csrf = 4;
+    repeated Permission permissions = 5;
+    State state = 6;
+    enum State {
+        initial = 0; // not used
+        // Action:CREATE
+        Activated = 2;
+        // Action:IDLE,Action:REDUCE
+        Reduced = 3;
+        // Action:EXPIRE,TERMINATE
+        Deactivated = 5;
+    }
+    enum Action {
+        CREATE = 0;
+        READ = 1;
+        IDLE = 2;
+        EXPIRE = 3;
+        TERMINATE = 4;
+        REDUCE = 5;
+    }
+}

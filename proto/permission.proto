@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+option go_package = "security";
+
+message Permission {
+    string class = 1;
+    repeated string actions = 2;
+    enum Action {
+        CREATE = 0;
+        READ = 1;
+        UPDATE = 2;
+        DELETE = 3;
+    }
+}

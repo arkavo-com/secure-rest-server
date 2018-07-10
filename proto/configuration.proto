@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+option go_package = "security";
+
+message Configuration {
+    Account account = 1;
+    message Account {
+        Store store = 1;
+    }
+    Permission permission = 2;
+    message Permission {
+        Store store = 1;
+    }
+    Policy policy = 3;
+    message Policy {
+        Store store = 1;
+    }
+    Role role = 4;
+    message Role {
+        Store store = 1;
+    }
+    Session session = 5;
+    message Session {
+        Store store = 1;
+    }
+    Server server = 6;
+    message Server {
+        string address = 1;
+        string certificate = 2;
+        string key = 3;
+        string origin = 4;
+    }
+    message Store {
+        string url = 1;
+        Redis redis = 2;
+        message Redis {
+            string network = 1;
+            string address = 2;
+            string readTimeout = 3;
+            string writeTimeout = 4;
+            int32 database = 5;
+            string password = 6;
+            bool tls = 7;
+        }
+    }
+}

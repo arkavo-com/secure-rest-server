@@ -1,0 +1,14 @@
+package: secure-rest-server
+import:
+- package: github.com/golang/protobuf
+  version: ^1.1.0
+  subpackages:
+  - proto
+- package: github.com/go-openapi/spec
+- package: github.com/stretchr/testify
+  version: ^1.2.1
+- package: github.com/gomodule/redigo
+  version: ^2.0.0
+- package: github.com/globalsign/mgo
+- package: github.com/hashicorp/go-memdb
+- package: github.com/hashicorp/go-immutable-radix
