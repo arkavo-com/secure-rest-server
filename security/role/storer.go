@@ -15,7 +15,7 @@ import (
 type storeProvider int
 
 const (
-	mongodbStore storeProvider = iota + 1
+	mongodbStore  storeProvider = iota + 1
 	postgresStore
 	redisStore
 	memdbStore
@@ -29,7 +29,7 @@ var (
 	ErrNotFound       = errors.New("not found")
 	ErrDuplicate      = errors.New("duplicate")
 	s                 store
-	administratorRole   = security.Role{
+	administratorRole = security.Role{
 		Name: "Administrator",
 		Permissions: []*security.Permission{
 			&security.AccountPermission,
@@ -38,6 +38,7 @@ var (
 			&security.RolePermission,
 			&security.SessionPermission,
 		},
+		State: security.Role_Activated,
 	}
 )
 
@@ -47,6 +48,7 @@ func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
 		database: info.Database,
 	}
 	s.mSession, _ = mgo.DialWithInfo(info)
+	s.createRole(&administratorRole)
 	return &s
 }
 
@@ -99,8 +101,7 @@ type store struct {
 }
 
 func (s *store) c() *mgo.Collection {
-	s.mSession.Refresh()
-	return s.mSession.Clone().DB("pb").C("role")
+	return s.mSession.Clone().DB(s.database).C(collection)
 }
 
 func (s *store) get() redis.Conn {
@@ -226,7 +227,7 @@ func (s *store) updateRole(r *security.Role) error {
 func (s *store) deleteRole(name string) error {
 	switch s.provider {
 	case mongodbStore:
-		return s.c().Remove(name)
+		return s.c().Remove(bson.M{"name": name})
 	case postgresStore:
 	case redisStore:
 		_, err := s.get().Do("DEL", name)

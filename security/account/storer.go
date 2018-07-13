@@ -15,7 +15,7 @@ import (
 type storeProvider int
 
 const (
-	mongodbStore storeProvider = iota + 1
+	mongodbStore  storeProvider = iota + 1
 	postgresStore
 	redisStore
 	memdbStore
@@ -37,6 +37,18 @@ func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
 		database: info.Database,
 	}
 	s.mSession, _ = mgo.DialWithInfo(info)
+	return &s
+}
+
+func RegisterStoreProviderRedis(c redis.Conn) *store {
+	s = store{
+		provider: redisStore,
+		redisPool: &redis.Pool{
+			Dial: func() (redis.Conn, error) {
+				return c, nil
+			},
+		},
+	}
 	return &s
 }
 

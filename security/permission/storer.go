@@ -21,7 +21,7 @@ const (
 )
 
 const (
-	collection = "session"
+	collection = "permission"
 )
 
 var (
@@ -87,8 +87,7 @@ type store struct {
 }
 
 func (s *store) c() *mgo.Collection {
-	s.mSession.Refresh()
-	return s.mSession.Clone().DB("pb").C("permission")
+	return s.mSession.Clone().DB(s.database).C(collection)
 }
 
 func (s *store) get() redis.Conn {
@@ -132,7 +131,8 @@ func (s *store) readPermissions() ([]*security.Permission, error) {
 	var permissions []*security.Permission
 	switch s.provider {
 	case mongodbStore:
-		s.c().Find(nil).All(&permissions)
+		err := s.c().Find(nil).All(&permissions)
+		return permissions, err
 	case memdbStore:
 		txn := s.mem.Txn(false)
 		defer txn.Abort()

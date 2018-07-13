@@ -9,12 +9,13 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
+	"github.com/globalsign/mgo/bson"
 )
 
 type storeProvider int
 
 const (
-	mongodbStore storeProvider = iota + 1
+	mongodbStore  storeProvider = iota + 1
 	postgresStore
 	redisStore
 	memdbStore
@@ -28,6 +29,15 @@ var (
 	s           store
 	ErrNotFound = errors.New("not found")
 )
+
+func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
+	s = store{
+		provider: mongodbStore,
+		database: info.Database,
+	}
+	s.mSession, _ = mgo.DialWithInfo(info)
+	return &s
+}
 
 // RegisterStoreProviderMemdb
 func RegisterStoreProviderMemdb() *store {
@@ -77,8 +87,14 @@ type store struct {
 	mem       *memdb.MemDB
 }
 
+func (s *store) c() *mgo.Collection {
+	return s.mSession.Clone().DB(s.database).C(collection)
+}
+
 func (s *store) createSession(ss security.Session) error {
 	switch s.provider {
+	case mongodbStore:
+		return s.c().Insert(ss)
 	case redisStore:
 		b, err := proto.Marshal(&ss)
 		if err != nil {
@@ -101,6 +117,10 @@ func (s *store) createSession(ss security.Session) error {
 
 func (s *store) readSession(si string) (*security.Session, error) {
 	switch s.provider {
+	case mongodbStore:
+		ss := security.Session{}
+		err := s.c().Find(bson.M{"sessionid": si}).One(&ss)
+		return &ss, err
 	case redisStore:
 		b, err := redis.Bytes(s.redisPool.Get().Do("GET", si))
 		if err != nil {
@@ -129,6 +149,8 @@ func (s *store) readSession(si string) (*security.Session, error) {
 
 func (s *store) deleteSession(sessionId string) error {
 	switch s.provider {
+	case mongodbStore:
+		return s.c().Remove(bson.M{"sessionid": sessionId})
 	case redisStore:
 		_, err := s.redisPool.Get().Do("DEL", sessionId)
 		return err

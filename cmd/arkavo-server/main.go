@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"log"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,8 +15,6 @@ import (
 	"secure-rest-server/security/rest"
 	"secure-rest-server/security/role"
 	"secure-rest-server/security/session"
-	"strings"
-
 	"github.com/globalsign/mgo"
 	"github.com/go-openapi/spec"
 	"github.com/gomodule/redigo/redis"
@@ -26,91 +22,114 @@ import (
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
+	// account
 	var accountReader security.AccountReader
-	var policyReader security.PolicyReader
-	var roleReader security.RoleReader
-	// store
 	sURL, err := url.Parse(configuration.Account.Store.Url)
-	// configuration.Permission.Store.URL
 	if err != nil {
 		log.Println("store url error", err)
 	}
 	switch sURL.Scheme {
 	case "mongodb":
-		// workaround for ssl ParseURL bug
-		mongoUrl := sURL.String()
-		ssl := strings.Contains(mongoUrl, "ssl=true")
-		if ssl {
-			mongoUrl = strings.Replace(mongoUrl, "ssl=true", "", -1)
+		info, err := dialMgo(*configuration.Account.Store)
+		if err == nil {
+			accountReader = account.RegisterStoreProviderMgo(&info)
 		}
-		// MongoDB
-		info, err := mgo.ParseURL(mongoUrl)
-		if err != nil {
-			log.Println("mongodb url error", err)
-		}
-		if ssl {
-			tlsConfig := &tls.Config{}
-			info.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
-				conn, err := tls.Dial("tcp", addr.String(), tlsConfig)
-				return conn, err
-			}
-		}
-		_, err = mgo.DialWithInfo(info)
-		if err != nil {
-			log.Println("mongodb dial error", err)
-		}
-		accountReader = account.RegisterStoreProviderMgo(info)
-		policyReader = policy.RegisterStoreProviderMgo(info)
-		role.RegisterStoreProviderMgo(info)
-		permission.RegisterStoreProviderMgo(info)
-	case "postgres":
 	case "redis":
-		// role
-		c, err := redis.Dial(
-			configuration.Role.Store.Redis.Network,
-			configuration.Role.Store.Redis.Address,
-			redis.DialDatabase(int(configuration.Role.Store.Redis.Database)),
-			redis.DialPassword(configuration.Role.Store.Redis.Password),
-		)
-		if err != nil {
-			log.Println("redis dial error", err)
+		c, err := dialRedis(*configuration.Account.Store)
+		if err == nil {
+			accountReader = account.RegisterStoreProviderRedis(c)
 		}
-		role.RegisterStoreProviderRedis(c)
-		// session
-		c, err = redis.Dial(
-			configuration.Session.Store.Redis.Network,
-			configuration.Session.Store.Redis.Address,
-			redis.DialDatabase(int(configuration.Role.Store.Redis.Database)),
-			redis.DialPassword(configuration.Session.Store.Redis.Password),
-		)
-		if err != nil {
-			log.Println("redis dial error", err)
-		}
-		session.RegisterStoreProviderRedis(c)
-		// permission
-		c, err = redis.Dial(
-			configuration.Permission.Store.Redis.Network,
-			configuration.Permission.Store.Redis.Address,
-			redis.DialDatabase(int(configuration.Role.Store.Redis.Database)),
-			redis.DialPassword(configuration.Permission.Store.Redis.Password),
-		)
-		permission.RegisterStoreProviderRedis(c)
 	default:
 		log.Println("development mode enabled - memory database")
 		accountReader = account.RegisterStoreProviderMemdb()
-		policyReader = policy.RegisterStoreProviderMemdb()
-		roleReader = role.RegisterStoreProviderMemdb()
-		session.RegisterStoreProviderMemdb()
-		permission.RegisterStoreProviderMemdb()
 	}
 	if accountReader == nil {
 		log.Fatal("accountReader uninitialized")
 	}
+	// permission
+	sURL, err = url.Parse(configuration.Permission.Store.Url)
+	if err != nil {
+		log.Println("store url error", err)
+	}
+	switch sURL.Scheme {
+	case "mongodb":
+		info, err := dialMgo(*configuration.Permission.Store)
+		if err == nil {
+			permission.RegisterStoreProviderMgo(&info)
+		}
+	case "postgres":
+	case "redis":
+		c, err := dialRedis(*configuration.Permission.Store)
+		if err == nil {
+			permission.RegisterStoreProviderRedis(c)
+		}
+	default:
+		permission.RegisterStoreProviderMemdb()
+	}
+	// policy
+	var policyReader security.PolicyReader
+	sURL, err = url.Parse(configuration.Policy.Store.Url)
+	if err != nil {
+		log.Println("store url error", err)
+	}
+	switch sURL.Scheme {
+	case "mongodb":
+		info, err := dialMgo(*configuration.Policy.Store)
+		if err == nil {
+			policyReader = policy.RegisterStoreProviderMgo(&info)
+		}
+	case "redis":
+		c, err := dialRedis(*configuration.Policy.Store)
+		if err == nil {
+			policyReader = policy.RegisterStoreProviderRedis(c)
+		}
+	default:
+		policyReader = policy.RegisterStoreProviderMemdb()
+	}
 	if policyReader == nil {
 		log.Fatal("policyReader uninitialized")
 	}
+	// role
+	var roleReader security.RoleReader
+	sURL, err = url.Parse(configuration.Role.Store.Url)
+	if err != nil {
+		log.Println("store url error", err)
+	}
+	switch sURL.Scheme {
+	case "mongodb":
+		info, _ := dialMgo(*configuration.Role.Store)
+		if err == nil {
+			roleReader = role.RegisterStoreProviderMgo(&info)
+		}
+	case "redis":
+		c, _ := dialRedis(*configuration.Role.Store)
+		if err == nil {
+			role.RegisterStoreProviderRedis(c)
+		}
+	default:
+		roleReader = role.RegisterStoreProviderMemdb()
+	}
 	if roleReader == nil {
 		log.Fatal("roleReader uninitialized")
+	}
+	// session
+	sURL, err = url.Parse(configuration.Session.Store.Url)
+	if err != nil {
+		log.Println("store url error", err)
+	}
+	switch sURL.Scheme {
+	case "mongodb":
+		info, _ := dialMgo(*configuration.Session.Store)
+		if err == nil {
+			session.RegisterStoreProviderMgo(&info)
+		}
+	case "redis":
+		c, _ := dialRedis(*configuration.Session.Store)
+		if err == nil {
+			session.RegisterStoreProviderRedis(c)
+		}
+	default:
+		session.RegisterStoreProviderMemdb()
 	}
 	// openapi paths
 	pa := spec.Paths{Paths: map[string]spec.PathItem{}}
@@ -148,4 +167,34 @@ func main() {
 	}()
 	<-stop
 	server.Shutdown(context.Background())
+}
+
+func dialMgo(c security.Configuration_Store) (mgo.DialInfo, error) {
+	info, err := mgo.ParseURL(c.Url)
+	if err != nil {
+		log.Println("mongodb url error", err)
+		return *info, err
+	}
+	// connection test fast
+	temp := info.FailFast
+	info.FailFast = true
+	_, err = mgo.DialWithInfo(info)
+	if err != nil {
+		log.Println("mongodb dial error", err)
+	}
+	info.FailFast = temp
+	return *info, err
+}
+
+func dialRedis(c security.Configuration_Store) (redis.Conn, error) {
+	conn, err := redis.Dial(
+		c.Redis.Network,
+		c.Redis.Address,
+		redis.DialDatabase(int(c.Redis.Database)),
+		redis.DialPassword(c.Redis.Password),
+	)
+	if err != nil {
+		log.Println("redis dial error", err)
+	}
+	return conn, err
 }

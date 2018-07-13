@@ -59,6 +59,18 @@ func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
 	return &s
 }
 
+func RegisterStoreProviderRedis(c redis.Conn) *store {
+	s = store{
+		provider: redisStore,
+		redisPool: &redis.Pool{
+			Dial: func() (redis.Conn, error) {
+				return c, nil
+			},
+		},
+	}
+	return &s
+}
+
 func RegisterStoreProviderMemdb() *store {
 	s = store{
 		provider: memdbStore,

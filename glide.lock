@@ -2,7 +2,7 @@ hash: a8b4cf2a1e402a6ed4aa9676d53413efb0b30edf72a9d17f477e4bf13851252a
 updated: 2018-07-04T01:13:15.42505-04:00
 imports:
 - name: github.com/globalsign/mgo
-  version: baa28fcb8e7d5dfab92026c0920cb6c9ae72faa2
+  version: 113d3961e7311526535a1ef7042196563d442761
   subpackages:
   - bson
   - internal/json
