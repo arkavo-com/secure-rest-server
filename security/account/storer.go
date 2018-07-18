@@ -1,8 +1,10 @@
 package account
 
 import (
+	"database/sql"
 	"errors"
 	"log"
+
 	"secure-rest-server/security"
 
 	"github.com/globalsign/mgo"
@@ -10,6 +12,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
+	"github.com/lib/pq"
 )
 
 type storeProvider int
@@ -37,6 +40,14 @@ func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
 		database: info.Database,
 	}
 	s.mSession, _ = mgo.DialWithInfo(info)
+	return &s
+}
+
+func RegisterStoreProviderPostgres(db *sql.DB) *store {
+	s = store{
+		provider:   postgresStore,
+		postgresDB: db,
+	}
 	return &s
 }
 
@@ -86,11 +97,12 @@ func RegisterStoreProviderMemdb() *store {
 }
 
 type store struct {
-	provider  storeProvider
-	database  string
-	mSession  *mgo.Session
-	redisPool *redis.Pool
-	mem       *memdb.MemDB
+	provider   storeProvider
+	database   string
+	mSession   *mgo.Session
+	redisPool  *redis.Pool
+	mem        *memdb.MemDB
+	postgresDB *sql.DB
 }
 
 func (s *store) c() *mgo.Collection {
@@ -107,6 +119,22 @@ func (s *store) createAccount(a *security.Account) error {
 		err := s.c().Insert(a)
 		if mgo.IsDup(err) {
 			return ErrDuplicate
+		}
+		return err
+	case postgresStore:
+		const sqlstr = `INSERT INTO ` + collection + ` (` +
+			`account_name, account_salt, account_hash, account_state, account_roles` +
+			`) VALUES (` +
+			`$1, $2, $3, $4, $5` +
+			`)`
+		_, err := s.postgresDB.Exec(sqlstr, a.Name, a.Salt, a.Hash, a.State, pq.Array(a.Roles))
+		if err != nil {
+			if err, ok := err.(*pq.Error); ok {
+				if err.Code == "23505" {
+					return ErrDuplicate
+				}
+			}
+			return err
 		}
 		return err
 	case redisStore:
@@ -145,6 +173,24 @@ func (s *store) readAccounts() ([]*security.Account, error) {
 	case mongodbStore:
 		err := s.c().Find(nil).All(&accounts)
 		return accounts, err
+	case postgresStore:
+		const sqlstr = `SELECT ` +
+			`account_name, account_salt, account_hash, account_state, account_roles ` +
+			`FROM ` + collection
+		rows, err := s.postgresDB.Query(sqlstr)
+		if err != nil {
+			return accounts, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var a security.Account
+			err := rows.Scan(&a.Name, &a.Salt, &a.Hash, &a.State, pq.Array(&a.Roles))
+			if err != nil {
+				return nil, err
+			}
+			accounts = append(accounts, &a)
+		}
+		return accounts, err
 	case redisStore:
 	case memdbStore:
 		txn := s.mem.Txn(false)
@@ -168,6 +214,19 @@ func (s *store) ReadAccount(name string) (*security.Account, error) {
 	switch s.provider {
 	case mongodbStore:
 		err := s.c().Find(bson.M{"name": name}).One(&a)
+		return &a, err
+	case postgresStore:
+		const sqlstr = `SELECT ` +
+			`account_name, account_salt, account_hash, account_state, account_roles ` +
+			`FROM ` + collection + ` ` +
+			`WHERE account_name = $1`
+		err := s.postgresDB.QueryRow(sqlstr, name).Scan(&a.Name, &a.Salt, &a.Hash, &a.State, pq.Array(&a.Roles))
+		if err != nil {
+			if sql.ErrNoRows == err {
+				return &a, ErrNotFound
+			}
+			return &a, err
+		}
 		return &a, err
 	case redisStore:
 		b, err := redis.Bytes(s.get().Do("GET", name))
@@ -198,6 +257,14 @@ func (s *store) updateAccount(a *security.Account) error {
 	switch s.provider {
 	case mongodbStore:
 		return s.c().Update(bson.M{"name": a.Name}, &a)
+	case postgresStore:
+		const sqlstr = `UPDATE ` + collection + ` SET (` +
+			`account_salt, account_hash, account_state, account_roles` +
+			`) = ROW( ` +
+			`$1, $2, $3, $4` +
+			`) WHERE account_name = $5`
+		_, err := s.postgresDB.Exec(sqlstr, &a.Salt, &a.Hash, &a.State, pq.Array(&a.Roles), &a.Name)
+		return err
 	case redisStore:
 		b, err := proto.Marshal(a)
 		if err != nil {
@@ -231,6 +298,10 @@ func (s *store) deleteAccount(name string) error {
 	switch s.provider {
 	case mongodbStore:
 		return s.c().Remove(name)
+	case postgresStore:
+		const sqlstr = `DELETE FROM ` + collection + ` WHERE account_name = $1`
+		_, err := s.postgresDB.Exec(sqlstr, name)
+		return err
 	case redisStore:
 		_, err := s.get().Do("DEL", name)
 		return err

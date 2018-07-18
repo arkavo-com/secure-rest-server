@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+
 	"secure-rest-server/security"
 	"secure-rest-server/security/account"
 	"secure-rest-server/security/configuration"
@@ -15,9 +17,11 @@ import (
 	"secure-rest-server/security/rest"
 	"secure-rest-server/security/role"
 	"secure-rest-server/security/session"
+
 	"github.com/globalsign/mgo"
 	"github.com/go-openapi/spec"
 	"github.com/gomodule/redigo/redis"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -33,6 +37,18 @@ func main() {
 		info, err := dialMgo(*configuration.Account.Store)
 		if err == nil {
 			accountReader = account.RegisterStoreProviderMgo(&info)
+		}
+	case "postgres":
+		db, err := sql.Open("postgres", sURL.String())
+		if err != nil {
+			log.Println(err)
+		}
+		err = db.Ping()
+		if err != nil {
+			log.Println(err)
+		}
+		if err == nil {
+			accountReader = account.RegisterStoreProviderPostgres(db)
 		}
 	case "redis":
 		c, err := dialRedis(*configuration.Account.Store)
@@ -58,6 +74,17 @@ func main() {
 			permission.RegisterStoreProviderMgo(&info)
 		}
 	case "postgres":
+		db, err := sql.Open("postgres", sURL.String())
+		if err != nil {
+			log.Println(err)
+		}
+		err = db.Ping()
+		if err != nil {
+			log.Println(err)
+		}
+		if err == nil {
+			permission.RegisterStoreProviderPostgres(db)
+		}
 	case "redis":
 		c, err := dialRedis(*configuration.Permission.Store)
 		if err == nil {
@@ -101,10 +128,22 @@ func main() {
 		if err == nil {
 			roleReader = role.RegisterStoreProviderMgo(&info)
 		}
+	case "postgres":
+		db, err := sql.Open("postgres", sURL.String())
+		if err != nil {
+			log.Println(err)
+		}
+		err = db.Ping()
+		if err != nil {
+			log.Println(err)
+		}
+		if err == nil {
+			roleReader = role.RegisterStoreProviderPostgres(db)
+		}
 	case "redis":
 		c, _ := dialRedis(*configuration.Role.Store)
 		if err == nil {
-			role.RegisterStoreProviderRedis(c)
+			roleReader = role.RegisterStoreProviderRedis(c)
 		}
 	default:
 		roleReader = role.RegisterStoreProviderMemdb()
@@ -122,6 +161,18 @@ func main() {
 		info, _ := dialMgo(*configuration.Session.Store)
 		if err == nil {
 			session.RegisterStoreProviderMgo(&info)
+		}
+	case "postgres":
+		db, err := sql.Open("postgres", sURL.String())
+		if err != nil {
+			log.Println(err)
+		}
+		err = db.Ping()
+		if err != nil {
+			log.Println(err)
+		}
+		if err == nil {
+			session.RegisterStoreProviderPostgres(db)
 		}
 	case "redis":
 		c, _ := dialRedis(*configuration.Session.Store)

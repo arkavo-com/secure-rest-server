@@ -12,8 +12,9 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
-	"secure-rest-server/security"
 	"strings"
+
+	"secure-rest-server/security"
 )
 
 type HeaderHandler struct {

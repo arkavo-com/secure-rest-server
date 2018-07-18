@@ -11,7 +11,6 @@ type storeProvider int
 
 const (
 	mongodbStore storeProvider = iota + 1
-	postgresStore
 	redisStore
 	memdbStore
 )

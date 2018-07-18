@@ -3,6 +3,7 @@ package role
 import (
 	"context"
 	"net/http"
+
 	"secure-rest-server/security"
 	"secure-rest-server/security/authorization"
 	"secure-rest-server/security/rest"

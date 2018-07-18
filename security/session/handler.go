@@ -6,6 +6,7 @@ import (
 	"encoding/base32"
 	"log"
 	"net/http"
+
 	"secure-rest-server/security"
 	"secure-rest-server/security/authorization"
 	"secure-rest-server/security/rest"

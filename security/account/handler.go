@@ -5,11 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"net/http"
+	"time"
+
 	"secure-rest-server/security"
 	"secure-rest-server/security/authorization"
 	"secure-rest-server/security/rest"
 	"secure-rest-server/security/session"
-	"time"
 
 	"github.com/go-openapi/spec"
 	"github.com/golang/protobuf/proto"
@@ -206,7 +207,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		rest.WriteProto(w, a)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

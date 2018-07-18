@@ -48,7 +48,7 @@ func Errored(w http.ResponseWriter, err error) bool {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(err.Error()))
-			panic(err)
+			//panic(err)
 		}
 	}
 	return true

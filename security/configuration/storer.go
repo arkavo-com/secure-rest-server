@@ -3,8 +3,9 @@ package configuration
 import (
 	"log"
 	"net/http"
-	"secure-rest-server/security"
+
 	"protobuf/jsonpb"
+	"secure-rest-server/security"
 )
 
 var (
@@ -53,21 +54,21 @@ func getSet(httpClient httpGetter) {
 		},
 	}
 	Server = security.Configuration_Server{
-		Address: ":1337",
-		Origin: "https://localhost:3000",
-		Key: "server.key",
+		Address:     ":1337",
+		Origin:      "https://localhost:3000",
+		Key:         "server.key",
 		Certificate: "server.pem",
 	}
 	// get
 	r, err := httpClient.Get("http://127.0.0.1:8500/v1/kv/arkavo/configuration?raw")
 	if err != nil {
 		log.Println("consul unreachable", err)
-		// TODO log defaults
+		logConfiguration()
 		return
 	}
 	if r.StatusCode != http.StatusOK {
 		log.Println("bad response code", r.StatusCode, r.Request.URL)
-		// TODO log defaults
+		logConfiguration()
 		return
 	}
 	var config security.Configuration
@@ -85,4 +86,20 @@ func getSet(httpClient httpGetter) {
 	Session = *config.Session
 	Server = *config.Server
 	httpClient = nil
+}
+
+func logConfiguration() {
+	m := jsonpb.Marshaler{
+		EmitDefaults: true,
+		Indent:       "  ",
+	}
+	s, _ := m.MarshalToString(&security.Configuration{
+		Account:    &Account,
+		Permission: &Permission,
+		Policy:     &Policy,
+		Role:       &Role,
+		Session:    &Session,
+		Server:     &Server,
+	})
+	log.Println("configuration: \n", s)
 }

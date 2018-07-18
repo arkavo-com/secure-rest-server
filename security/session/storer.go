@@ -1,15 +1,17 @@
 package session
 
 import (
+	"database/sql"
 	"errors"
 	"log"
+
 	"secure-rest-server/security"
 
 	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
-	"github.com/globalsign/mgo/bson"
 )
 
 type storeProvider int
@@ -36,6 +38,14 @@ func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
 		database: info.Database,
 	}
 	s.mSession, _ = mgo.DialWithInfo(info)
+	return &s
+}
+
+func RegisterStoreProviderPostgres(db *sql.DB) *store {
+	s = store{
+		provider:   postgresStore,
+		postgresDB: db,
+	}
 	return &s
 }
 
@@ -80,11 +90,12 @@ func RegisterStoreProviderRedis(c redis.Conn) *store {
 }
 
 type store struct {
-	provider  storeProvider
-	database  string
-	mSession  *mgo.Session
-	redisPool *redis.Pool
-	mem       *memdb.MemDB
+	provider   storeProvider
+	database   string
+	mSession   *mgo.Session
+	redisPool  *redis.Pool
+	mem        *memdb.MemDB
+	postgresDB *sql.DB
 }
 
 func (s *store) c() *mgo.Collection {

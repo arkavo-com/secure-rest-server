@@ -3,6 +3,7 @@ package permission
 import (
 	"context"
 	"net/http"
+
 	"secure-rest-server/security"
 	"secure-rest-server/security/authorization"
 	"secure-rest-server/security/rest"
@@ -49,6 +50,14 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = s.createPermission(&permission)
+		if err == ErrDuplicate {
+			err = rest.ValidationErrors{
+				rest.ValidationError{
+					Property: "class",
+					Rule:     "Unique",
+				},
+			}
+		}
 		if rest.Errored(w, err) {
 			return
 		}

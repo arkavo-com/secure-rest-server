@@ -1,20 +1,23 @@
 package permission
 
 import (
+	"database/sql"
 	"errors"
 	"log"
+
 	"secure-rest-server/security"
 
 	"github.com/globalsign/mgo"
 	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
+	"github.com/lib/pq"
 )
 
 type storeProvider int
 
 const (
-	mongodbStore storeProvider = iota + 1
+	mongodbStore  storeProvider = iota + 1
 	postgresStore
 	redisStore
 	memdbStore
@@ -35,6 +38,14 @@ func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
 		database: info.Database,
 	}
 	s.mSession, _ = mgo.DialWithInfo(info)
+	return &s
+}
+
+func RegisterStoreProviderPostgres(db *sql.DB) *store {
+	s = store{
+		provider:   postgresStore,
+		postgresDB: db,
+	}
 	return &s
 }
 
@@ -79,11 +90,12 @@ func RegisterStoreProviderMemdb() *store {
 }
 
 type store struct {
-	provider  storeProvider
-	database  string
-	mSession  *mgo.Session
-	redisPool *redis.Pool
-	mem       *memdb.MemDB
+	provider   storeProvider
+	database   string
+	mSession   *mgo.Session
+	redisPool  *redis.Pool
+	mem        *memdb.MemDB
+	postgresDB *sql.DB
 }
 
 func (s *store) c() *mgo.Collection {
@@ -98,6 +110,21 @@ func (s *store) createPermission(p *security.Permission) error {
 	switch s.provider {
 	case mongodbStore:
 		return s.c().Insert(p)
+	case postgresStore:
+		const sqlstr = `INSERT INTO permission (` +
+			`permission_class, permission_actions` +
+			`) VALUES (` +
+			`$1, $2` +
+			`)`
+		_, err := s.postgresDB.Exec(sqlstr, p.Class, pq.Array(p.Actions))
+		if err != nil {
+			if err, ok := err.(*pq.Error); ok {
+				if err.Code == "23505" {
+					return ErrDuplicate
+				}
+			}
+			return err
+		}
 	case redisStore:
 		b, err := proto.Marshal(p)
 		if err != nil {
@@ -132,6 +159,25 @@ func (s *store) readPermissions() ([]*security.Permission, error) {
 	switch s.provider {
 	case mongodbStore:
 		err := s.c().Find(nil).All(&permissions)
+		return permissions, err
+	case postgresStore:
+		const sqlstr = `SELECT ` +
+			`permission_class, permission_actions ` +
+			`FROM ` + collection
+		rows, err := s.postgresDB.Query(sqlstr)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var p security.Permission
+			err := rows.Scan(&p.Class, pq.Array(&p.Actions))
+			if err != nil {
+				return nil, err
+			}
+			permissions = append(permissions, &p)
+		}
+		err = rows.Err()
 		return permissions, err
 	case memdbStore:
 		txn := s.mem.Txn(false)

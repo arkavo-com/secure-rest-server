@@ -1,17 +1,19 @@
 package configuration
 
 import (
-	"encoding/json"
-	"secure-rest-server/security"
-	"testing"
-	"net/http"
-	"io/ioutil"
 	"bytes"
-	"github.com/stretchr/testify/assert"
-	"os"
+	"encoding/json"
 	"io"
-	"strings"
+	"io/ioutil"
+	"net/http"
 	"net/url"
+	"os"
+	"strings"
+	"testing"
+
+	"secure-rest-server/security"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
@@ -42,8 +44,7 @@ func TestMain(m *testing.M) {
 				Redis: &security.Configuration_Store_Redis{},
 			},
 		},
-		Server: &security.Configuration_Server{
-		},
+		Server: &security.Configuration_Server{},
 	}
 	c.Account.Store.Url = "mongodb://"
 	c.Permission.Store.Url = c.Account.Store.Url
@@ -73,7 +74,7 @@ func (c *mockClient) Get(u string) (*http.Response, error) {
 		StatusCode: c.statusCode,
 		Header:     header,
 		Body:       c.readCloser,
-		Request:    &http.Request{
+		Request: &http.Request{
 			URL: ru,
 		},
 	}

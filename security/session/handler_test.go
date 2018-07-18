@@ -5,9 +5,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"secure-rest-server/security"
 	"strings"
 	"testing"
+
+	"secure-rest-server/security"
 )
 
 var (
