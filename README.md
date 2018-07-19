@@ -25,13 +25,26 @@ REST server focusing on security with minimal dependencies
 
 ---
 
-## Build
+## Features
+
+### Configuration
+* Single method of loading configuration
+
+### Storage
+* MongoDB
+* PostgreSQL
+* Redis
+* go-memdb
+
+---
+
+### Build
 
 #### Dependency
 
 `glide install`
 
-#### Protocol Buffers
+#### Protocol Buffers (optional)
 `protoc -I proto --go_out=security proto/*.proto`
 
 `prototag -dir=security`
