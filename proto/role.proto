@@ -6,12 +6,10 @@ import "permission.proto";
 
 // A named collection of permissions
 message Role {
-    // `json:"-"`
-    string id = 1;
     // unique name
-    string name = 2;
-    repeated Permission permissions = 4;
-    State state = 5;
+    string name = 1;
+    State state = 2;
+    repeated Permission permissions = 3;
     enum State {
         nonstate = 0; // not used
         // Role_CREATE

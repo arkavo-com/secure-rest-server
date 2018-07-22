@@ -4,17 +4,15 @@ option go_package = "security";
 
 // A system account to allow access for a subject
 message Account {
-    // `json:"-"`
-    string id = 1;
     // unique name
-    string name = 2;
+    string name = 1;
     // `json:"-"`
-    string salt = 3;
+    string salt = 2;
     // `json:"-"`
-    string hash = 4;
+    string hash = 3;
+    State state = 4;
     // []role.proto:Role.name
     repeated string roles = 5;
-    State state = 6;
     enum State {
         nonstate = 0; // not used
         // Account_CREATE,Account_INITIALIZE
@@ -29,10 +27,11 @@ message Account {
     enum Action {
         CREATE = 0;
         READ = 1;
-        UPDATE_PASSWORD = 2;
-        ACTIVATE = 3;
-        DEACTIVATE = 4;
-        LOCK = 5;
-        INITIALIZE = 6;
+        UPDATE = 2;
+        UPDATE_PASSWORD = 3;
+        ACTIVATE = 4;
+        DEACTIVATE = 5;
+        LOCK = 6;
+        INITIALIZE = 7;
     }
 }

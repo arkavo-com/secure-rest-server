@@ -59,7 +59,7 @@ func RegisterStoreProviderMemdb() *store {
 					"id": {
 						Name:    "id",
 						Unique:  true,
-						Indexer: &memdb.StringFieldIndex{Field: "SessionId"},
+						Indexer: &memdb.StringFieldIndex{Field: "Id"},
 					},
 				},
 			},
@@ -111,7 +111,7 @@ func (s *store) createSession(ss security.Session) error {
 		if err != nil {
 			return err
 		}
-		_, err = s.redisPool.Get().Do("SET", ss.SessionId, b)
+		_, err = s.redisPool.Get().Do("SET", ss.Id, b)
 		return err
 	case memdbStore:
 		txn := s.mem.Txn(true)
@@ -130,7 +130,7 @@ func (s *store) readSession(si string) (*security.Session, error) {
 	switch s.provider {
 	case mongodbStore:
 		ss := security.Session{}
-		err := s.c().Find(bson.M{"sessionid": si}).One(&ss)
+		err := s.c().Find(bson.M{"id": si}).One(&ss)
 		return &ss, err
 	case redisStore:
 		b, err := redis.Bytes(s.redisPool.Get().Do("GET", si))
@@ -158,16 +158,16 @@ func (s *store) readSession(si string) (*security.Session, error) {
 	return nil, ErrNotFound
 }
 
-func (s *store) deleteSession(sessionId string) error {
+func (s *store) deleteSession(id string) error {
 	switch s.provider {
 	case mongodbStore:
-		return s.c().Remove(bson.M{"sessionid": sessionId})
+		return s.c().Remove(bson.M{"id": id})
 	case redisStore:
-		_, err := s.redisPool.Get().Do("DEL", sessionId)
+		_, err := s.redisPool.Get().Do("DEL", id)
 		return err
 	case memdbStore:
 		txn := s.mem.Txn(true)
-		raw, err := txn.First(collection, "id", sessionId)
+		raw, err := txn.First(collection, "id", id)
 		if err != nil {
 			txn.Abort()
 			return err

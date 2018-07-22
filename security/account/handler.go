@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"net/http"
-	"time"
 
 	"secure-rest-server/security"
 	"secure-rest-server/security/authorization"
@@ -97,9 +96,6 @@ func RegisterHttpHandler(paths spec.Paths, ar security.AccountReader) {
 
 func serveHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case "HEAD":
-		modifiedTime := time.Now()
-		w.Header().Set("last-modified", modifiedTime.UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 	case "GET":
 		err := authorize(r.Context(), security.Account_READ)
 		if rest.Errored(w, err) {
@@ -229,6 +225,9 @@ func serveHTTPpassword(w http.ResponseWriter, r *http.Request) {
 		}
 		// hash
 		h, err := rest.ValidateParameter(*r, accountParameterPassword)
+		if rest.Errored(w, err) {
+			return
+		}
 		a.Hash = h
 		// state
 		a.State = transition(a.State, security.Account_UPDATE_PASSWORD)
@@ -241,7 +240,7 @@ func serveHTTPpassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func authorize(ctx context.Context, a security.Account_Action) error {
-	return authorization.Authorize(ctx, security.AccountPermission.Class, security.AccountPermission.Actions[a])
+	return authorization.Authorize(ctx, security.AccountPermission.Class, security.Account_Action_name[int32(a)])
 }
 
 // transition provides a guard to protect from invalid transitions

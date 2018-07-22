@@ -64,8 +64,9 @@ func main() {
 					continue
 				}
 				if strings.HasSuffix(it.Name, "_Action") {
-					sp := strings.Split(vs.Names[0].Name, "_")
-					v.pmActions = append(v.pmActions, sp[1])
+					i := strings.Index(vs.Names[0].Name, "_")
+					sp := vs.Names[0].Name[i+1:]
+					v.pmActions = append(v.pmActions, sp)
 				}
 			}
 			return true

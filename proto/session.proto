@@ -6,15 +6,13 @@ import "permission.proto";
 
 // A container of time-limited permissions shared with a subject
 message Session {
-    // `json:"-"`
-    string id = 1;
     // privately shared identifier `json:"-"`
-    string sessionId = 2;
+    string id = 1;
     // account.proto:Account.name
-    string account = 3;
-    string csrf = 4;
-    repeated Permission permissions = 5;
-    State state = 6;
+    string account = 2;
+    string csrf = 3;
+    repeated Permission permissions = 4;
+    State state = 5;
     enum State {
         initial = 0; // not used
         // Action:CREATE

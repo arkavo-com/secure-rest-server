@@ -122,7 +122,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ss.State = transition(ss.State, security.Session_TERMINATE)
-		s.deleteSession(ss.SessionId)
+		s.deleteSession(ss.Id)
 		w.WriteHeader(http.StatusNoContent)
 	case "GET":
 		v := r.Context().Value("session.context")
@@ -179,7 +179,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		csrf := make([]byte, 32)
 		rand.Read(csrf)
 		ss := security.Session{
-			SessionId:   base32.StdEncoding.EncodeToString(token),
+			Id:          base32.StdEncoding.EncodeToString(token),
 			Csrf:        base32.StdEncoding.EncodeToString(csrf),
 			Account:     ac.Name,
 			Permissions: permissions,
@@ -194,7 +194,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		c := http.Cookie{
 			Name:     "c",
-			Value:    ss.SessionId,
+			Value:    ss.Id,
 			Path:     "/",
 			Secure:   true,
 			HttpOnly: true,
@@ -202,13 +202,13 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 			// TODO MaxAge:
 		}
 		http.SetCookie(w, &c)
-		ss.SessionId = "" // do not expose
+		ss.Id = "" // do not expose
 		rest.WriteProto(w, &ss)
 	}
 }
 
 func authorize(ctx context.Context, a security.Session_Action) error {
-	return authorization.Authorize(ctx, security.SessionPermission.Class, security.SessionPermission.Actions[a])
+	return authorization.Authorize(ctx, security.SessionPermission.Class, security.Session_Action_name[int32(a)])
 }
 
 // transition provides a guard to protect from invalid transitions

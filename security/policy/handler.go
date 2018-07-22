@@ -64,5 +64,5 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func authorize(ctx context.Context, a security.Policy_Action) error {
-	return authorization.Authorize(ctx, security.PolicyPermission.Class, security.PolicyPermission.Actions[a])
+	return authorization.Authorize(ctx, security.PolicyPermission.Class, security.Policy_Action_name[int32(a)])
 }

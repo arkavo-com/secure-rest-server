@@ -189,7 +189,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 }
 
 func authorize(ctx context.Context, a security.Role_Action) error {
-	return authorization.Authorize(ctx, security.RolePermission.Class, security.RolePermission.Actions[a])
+	return authorization.Authorize(ctx, security.RolePermission.Class, security.Role_Action_name[int32(a)])
 }
 
 // transition provides a guard to protect from invalid transitions
