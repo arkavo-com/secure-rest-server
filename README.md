@@ -40,18 +40,24 @@ REST server focusing on security with minimal dependencies
 
 ### Build
 
-#### Dependency
-
 `glide install`
 
-#### Protocol Buffers (optional)
-`protoc -I proto --go_out=security proto/*.proto`
-
-`prototag -dir=security`
-
-`pb-go-tag-bson -dir=security`
+`go install ./cmd/arkavo-server/...`
 
 #### Certificate
 `openssl genrsa -out server.key 2048`
 
 `openssl req -new -x509 -sha256 -key server.key -out server.pem -days 365`
+
+#### Execute
+
+`arkavo-server`
+
+#### Protocol Buffers (optional)
+`protoc -I proto --go_out=security proto/*.proto`
+
+`go install ./cmd/prototag/...`
+
+`prototag -dir=security`
+
+`pb-go-tag-bson -dir=security`

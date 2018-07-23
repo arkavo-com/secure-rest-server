@@ -4,8 +4,9 @@ import (
 	"log"
 	"net/http"
 
-	"protobuf/jsonpb"
 	"secure-rest-server/security"
+
+	"github.com/golang/protobuf/jsonpb"
 )
 
 var (
