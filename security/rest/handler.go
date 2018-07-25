@@ -35,6 +35,7 @@ func (h HeaderHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("x-frame-options", "DENY")
 	w.Header().Add("x-content-type-options", "DENY")
 	w.Header().Add("content-security-policy", "default-src 'self'")
+	w.Header().Add("strict-transport-security", "max-age=31536000; includeSubDomains")
 	if r.Method == "OPTIONS" {
 		w.Header().Set("content-type", "text/plain")
 		w.Header().Add("access-control-allow-headers", "content-type,origin,accept,referer,if-modified-since,x-csrf-token")
