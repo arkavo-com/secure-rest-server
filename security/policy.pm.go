@@ -1,3 +1,3 @@
 package security
 
-var PolicyPermission = Permission{Class: "Policy", Actions: []string{"READ", "UPDATE"}}
+var PolicyPermission = Permission{Class: "Policy", Actions: []string{"READ"}}

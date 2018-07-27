@@ -17,14 +17,14 @@ var paths spec.Paths
 
 func init() {
 	paths.Paths = make(map[string]spec.PathItem)
-	RegisterHttpHandler(paths, nil)
+	HandlePath(paths, nil)
 }
 
 func TestRegisterHttpHandler(t *testing.T) {
 	if len(paths.Paths) != 3 {
 		t.Error(len(paths.Paths))
 	}
-	if paths.Paths["/account"].Get != accountREADAll {
+	if paths.Paths["/account"].Get != operationReadAll {
 		t.Error()
 	}
 }
@@ -65,7 +65,7 @@ func Test_serveHTTPRead(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.want == 200 {
-				RegisterStoreProviderMemdb()
+				StoreMem()
 			}
 			serveHTTP(tt.args.w, tt.args.r)
 			if tt.args.w.Code != tt.want {
@@ -117,7 +117,7 @@ func Test_serveHTTPCreate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			RegisterStoreProviderMemdb()
+			StoreMem()
 			serveHTTP(tt.args.w, tt.args.r)
 			if tt.args.w.Code != tt.want {
 				t.Errorf("status code = %v, want %v", tt.args.w.Code, tt.want)
@@ -164,7 +164,8 @@ func Test_serveHTTPCreateDuplicate(t *testing.T) {
 			rd,
 		}, 400, "[{\"property\":\"name\",\"rule\":\"Unique\"}]"},
 	}
-	testStore := RegisterStoreProviderMemdb()
+	s.provider = 0
+	testStore := StoreMem()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s = *testStore
@@ -231,7 +232,7 @@ func Test_serveHTTPpassword(t *testing.T) {
 		Permissions: ps,
 	}))
 	rn.ParseForm()
-	rn.Form.Set("name", "not")
+	rn.Form.Set("name", "notadmin")
 	rn.Form.Set("p", "a")
 	// invalid
 	ri := httptest.NewRequest("PUT", "/account", strings.NewReader("p="))
@@ -260,7 +261,7 @@ func Test_serveHTTPpassword(t *testing.T) {
 			httptest.NewRecorder(),
 			httptest.NewRequest("PUT", "/account/test", nil),
 		}, 403},
-		{"update password not found", args{
+		{"update password account not found", args{
 			httptest.NewRecorder(),
 			rn,
 		}, 404},
@@ -275,7 +276,7 @@ func Test_serveHTTPpassword(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			RegisterStoreProviderMemdb()
+			StoreMem()
 			serveHTTPpassword(tt.args.w, tt.args.r)
 			if tt.args.w.Code != tt.want {
 				t.Errorf("status code = %v, want %v", tt.args.w.Code, tt.want)

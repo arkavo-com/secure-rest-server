@@ -3,59 +3,42 @@ syntax = "proto3";
 option go_package = "security";
 
 message Policy {
-    Account account = 16;
-    Audit audit = 11;
-    Password password = 12;
-    Role role = 14;
-    Session session = 15;
-    enum State {
-        // not used, zero is considered not set
-        nonstate = 0;
-        Active = 1;
-        Archived = 3;
-    }
+    Account account = 1;
+    Audit audit = 2;
+    Password password = 3;
+    Role role = 4;
+    Session session = 5;
     enum Action {
         READ = 0;
-        UPDATE = 1;
-    }
-    message Audit {
-        // do not log READ actions
-    }
-    message Password {
-        // minimum length, default 8
-        int32 lengthMinimum = 2;
-        int32 lengthMaximum = 3;
-        // contains 1 alpha, 1 numeric, 1 special
-        string pattern = 4;
-        // New password must not match a previous password
-        int32 reuseMaximum = 5;
-        // change password on first login
-        string authenticateInitialConsequence = 6;
-        //change password before max age
-        string durationMaximum = 7;
-        string durationMaximumConsequence = 8;
-        // Lock user account after too many failed login attempts
-        int32 authenticateFailedCountMaximum = 9;
-        string authenticateFailedMaximumConsequence = 10;
-        // blacklist
-        // change on reset
-        // chnage on unlock
-    }
-    message Role {
-        // view roles in profile
-    }
-    message Session {
-        bool single = 2;
-        string durationIdle = 3;
-        string idleConsequence = 4;
-        string durationRenewal = 5;
-        string durationMaximum = 6;
-        bool csrf = 7;
     }
     message Account {
-        // auto-lock unused user accounts after 90 days
-        string inactiveDurationConsequenceLock = 2;
-        // auto-deactivate unused user accounts after 180 days
-        string inactiveDurationConsequenceDeactivate = 3;
+        int32 lengthMinimum = 1;
+        int32 lengthMaximum = 2;
+        string pattern = 3;
+        string inactiveDurationConsequenceLock = 4;
+        string inactiveDurationConsequenceDeactivate = 5;
+    }
+    message Audit {
+    }
+    message Password {
+        int32 lengthMinimum = 1;
+        int32 lengthMaximum = 2;
+        string pattern = 3;
+        int32 reuseMaximum = 4;
+        string authenticateInitialConsequence = 5;
+        string durationMaximum = 6;
+        string durationMaximumConsequence = 7;
+        int32 authenticateFailedCountMaximum = 8;
+        string authenticateFailedMaximumConsequence = 9;
+    }
+    message Role {
+    }
+    message Session {
+        bool single = 1;
+        string durationIdle = 2;
+        string idleConsequence = 3;
+        string durationRenewal = 4;
+        string durationMaximum = 5;
+        bool csrf = 6;
     }
 }

@@ -8,6 +8,7 @@ import (
 
 	"secure-rest-server/security"
 	"secure-rest-server/security/authorization"
+	"secure-rest-server/security/policy"
 	"secure-rest-server/security/rest"
 	"secure-rest-server/security/session"
 
@@ -16,82 +17,113 @@ import (
 )
 
 var (
-	accountCREATE         = spec.NewOperation("accountCreate")
-	accountREAD           = spec.NewOperation("accountRead")
-	accountREADAll        = spec.NewOperation("accountReadAll")
-	accountReadAllHead    = spec.NewOperation("accountReadAllHead")
-	accountUPDATEPASSWORD = spec.NewOperation("accountUpdatePassword")
-	accountDELETE         = spec.NewOperation("accountDelete")
-	// parameters
-	accountParameterName     spec.Parameter
-	accountParameterPassword spec.Parameter
-)
-
-func RegisterHttpHandler(paths spec.Paths, ar security.AccountReader) {
-	p := "/account"
-	http.HandleFunc(p, session.HandlerFunc(serveHTTP))
-	paths.Paths[p] = spec.PathItem{
-		PathItemProps: spec.PathItemProps{
-			Get:  accountREADAll,
-			Post: accountCREATE,
-			Head: accountReadAllHead,
+	// operation
+	operationCreate = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:          "accountCreate",
+			Description: "",
+			Consumes:    []string{"application/json"},
+			Produces:    []string{"application/json"},
+			Parameters: []spec.Parameter{
+				rest.BodyParameter(spec.Schema{
+					SchemaProps: spec.SchemaProps{
+						Required:   []string{"name", "roles"},
+						Properties: map[string]spec.Schema{},
+					},
+				}),
+			},
 		},
 	}
-	accountCREATE.Parameters = append(accountCREATE.Parameters, rest.BodyParameter(spec.Schema{
-		SchemaProps: spec.SchemaProps{
-			Required:   []string{"name", "roles"},
-			Properties: map[string]spec.Schema{},
-		},
-	}))
-	accountCREATE.Consumes = []string{"application/json"}
-	accountCREATE.Produces = []string{"application/json"}
-	p = "/account/{name}"
-	rest.PathHandlerFunc(p, session.HandlerFunc(serveHTTPparameter))
-	paths.Paths[p] = spec.PathItem{
-		PathItemProps: spec.PathItemProps{
-			Get:    accountREAD,
-			Delete: accountDELETE,
+	operationRead = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "accountRead",
+			Consumes: []string{"application/json"},
+			Produces: []string{"application/json"},
+			Parameters: []spec.Parameter{
+				parameterName,
+			},
 		},
 	}
-	accountParameterName = spec.Parameter{
+	operationReadAll = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "accountReadAll",
+			Produces: []string{"application/json"},
+		},
+	}
+	operationUpdatePassword = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "accountUpdatePassword",
+			Consumes: []string{"application/x-www-form-urlencoded"},
+			Produces: []string{"application/json"},
+			Parameters: []spec.Parameter{
+				parameterName,
+				parameterPassword,
+			},
+		},
+	}
+	operationDelete = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID: "accountDelete",
+			Parameters: []spec.Parameter{
+				parameterName,
+			},
+		},
+	}
+	// parameter
+	parameterName = spec.Parameter{
 		ParamProps: spec.ParamProps{
 			Name:     "name",
 			In:       "path",
 			Required: true,
 			Schema: &spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					MinLength: &[]int64{2}[0],
-					MaxLength: &[]int64{256}[0],
-					Pattern:   "[0-9a-fA-F]",
+					MinLength: &[]int64{int64(policy.Password.LengthMinimum)}[0],
+					MaxLength: &[]int64{int64(policy.Password.LengthMaximum)}[0],
+					Pattern:   policy.Password.Pattern,
 				},
 			},
 		},
 	}
-	accountREAD.Parameters = append(accountREAD.Parameters, accountParameterName)
-	p = "/account/password/{name}"
-	rest.PathHandlerFunc(p, rest.PasswordHandlerFunc(ar, session.HandlerFunc(serveHTTPpassword)))
-	paths.Paths[p] = spec.PathItem{
-		PathItemProps: spec.PathItemProps{
-			Put: accountUPDATEPASSWORD,
-		},
-	}
-	accountUPDATEPASSWORD.Consumes = []string{"application/x-www-form-urlencoded"}
-	accountUPDATEPASSWORD.Parameters = append(accountUPDATEPASSWORD.Parameters, accountParameterName)
-	accountParameterPassword = spec.Parameter{
+	parameterPassword = spec.Parameter{
 		ParamProps: spec.ParamProps{
 			Name:     "p",
 			In:       "formData",
 			Required: true,
 			Schema: &spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					MinLength: &[]int64{2}[0],
-					MaxLength: &[]int64{1024}[0],
-					Pattern:   "[0-9a-fA-F]",
+					MinLength: &[]int64{int64(policy.Password.LengthMinimum)}[0],
+					MaxLength: &[]int64{int64(policy.Password.LengthMaximum)}[0],
+					Pattern:   policy.Password.Pattern,
 				},
 			},
 		},
 	}
-	accountUPDATEPASSWORD.Parameters = append(accountUPDATEPASSWORD.Parameters, accountParameterPassword)
+)
+// HandlePath registers http.HandleFunc and spec.Operation for paths
+func HandlePath(paths spec.Paths, ar security.AccountReader) {
+	p := "/account"
+	http.HandleFunc(p, session.HandlerFunc(serveHTTP))
+	paths.Paths[p] = spec.PathItem{
+		PathItemProps: spec.PathItemProps{
+			Get:  operationReadAll,
+			Post: operationCreate,
+		},
+	}
+	p = "/account/{name}"
+	rest.PathHandlerFunc(p, session.HandlerFunc(serveHTTPparameter))
+	paths.Paths[p] = spec.PathItem{
+		PathItemProps: spec.PathItemProps{
+			Get:    operationRead,
+			Delete: operationDelete,
+		},
+	}
+	p = "/account/password/{name}"
+	rest.PathHandlerFunc(p, rest.PasswordHandlerFunc(ar, session.HandlerFunc(serveHTTPpassword)))
+	paths.Paths[p] = spec.PathItem{
+		PathItemProps: spec.PathItemProps{
+			Put: operationUpdatePassword,
+		},
+	}
 }
 
 func serveHTTP(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +148,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a := security.Account{}
-		err = rest.Validate(r, accountCREATE, &a)
+		err = rest.Validate(r, operationCreate, &a)
 		if rest.Errored(w, err) {
 			return
 		}
@@ -149,7 +181,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		n, err := rest.ValidateParameter(*r, accountParameterName)
+		n, err := rest.ValidateParameter(*r, parameterName)
 		if rest.Errored(w, err) {
 			return
 		}
@@ -164,7 +196,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// account
-		n, err := rest.ValidateParameter(*r, accountParameterName)
+		n, err := rest.ValidateParameter(*r, parameterName)
 		if rest.Errored(w, err) {
 			return
 		}
@@ -173,7 +205,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		na := security.Account{}
-		err = rest.Validate(r, accountCREATE, &na)
+		err = rest.Validate(r, operationCreate, &na)
 		if rest.Errored(w, err) {
 			return
 		}
@@ -189,7 +221,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// account
-		n, err := rest.ValidateParameter(*r, accountParameterName)
+		n, err := rest.ValidateParameter(*r, parameterName)
 		if rest.Errored(w, err) {
 			return
 		}
@@ -215,7 +247,7 @@ func serveHTTPpassword(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// account
-		n, err := rest.ValidateParameter(*r, accountParameterName)
+		n, err := rest.ValidateParameter(*r, parameterName)
 		if rest.Errored(w, err) {
 			return
 		}
@@ -224,7 +256,7 @@ func serveHTTPpassword(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// hash
-		h, err := rest.ValidateParameter(*r, accountParameterPassword)
+		h, err := rest.ValidateParameter(*r, parameterPassword)
 		if rest.Errored(w, err) {
 			return
 		}

@@ -15,7 +15,6 @@ import (
 	"secure-rest-server/security/account"
 	"secure-rest-server/security/configuration"
 	"secure-rest-server/security/permission"
-	"secure-rest-server/security/policy"
 	"secure-rest-server/security/rest"
 	"secure-rest-server/security/role"
 	"secure-rest-server/security/session"
@@ -32,34 +31,27 @@ func main() {
 	var accountReader security.AccountReader
 	sURL, err := url.Parse(configuration.Account.Store.Url)
 	if err != nil {
-		log.Println("store url error", err)
+		log.Println("account url error", err)
 	}
 	switch sURL.Scheme {
 	case "mongodb":
-		info, err := dialMgo(*configuration.Account.Store)
+		s, err := dialMongo(*configuration.Account.Store)
 		if err == nil {
-			accountReader = account.RegisterStoreProviderMgo(&info)
+			accountReader = account.StoreMongo(s)
 		}
 	case "postgres":
-		db, err := sql.Open("postgres", sURL.String())
-		if err != nil {
-			log.Println(err)
-		}
-		err = db.Ping()
-		if err != nil {
-			log.Println(err)
-		}
+		db, err := dialPostgres(*configuration.Account.Store)
 		if err == nil {
-			accountReader = account.RegisterStoreProviderPostgres(db)
+			accountReader = account.StorePostgres(db)
 		}
 	case "redis":
 		c, err := dialRedis(*configuration.Account.Store)
 		if err == nil {
-			accountReader = account.RegisterStoreProviderRedis(c)
+			accountReader = account.StoreRedis(c)
 		}
 	default:
 		log.Println("development mode enabled - memory database")
-		accountReader = account.RegisterStoreProviderMemdb()
+		accountReader = account.StoreMem()
 	}
 	if accountReader == nil {
 		log.Fatal("accountReader uninitialized")
@@ -67,7 +59,7 @@ func main() {
 	// permission
 	sURL, err = url.Parse(configuration.Permission.Store.Url)
 	if err != nil {
-		log.Println("store url error", err)
+		log.Println("permission url error", err)
 	}
 	switch sURL.Scheme {
 	case "mongodb":
@@ -76,14 +68,7 @@ func main() {
 			permission.RegisterStoreProviderMgo(&info)
 		}
 	case "postgres":
-		db, err := sql.Open("postgres", sURL.String())
-		if err != nil {
-			log.Println(err)
-		}
-		err = db.Ping()
-		if err != nil {
-			log.Println(err)
-		}
+		db, err := dialPostgres(*configuration.Permission.Store)
 		if err == nil {
 			permission.RegisterStoreProviderPostgres(db)
 		}
@@ -95,34 +80,11 @@ func main() {
 	default:
 		permission.RegisterStoreProviderMemdb()
 	}
-	// policy
-	var policyReader security.PolicyReader
-	sURL, err = url.Parse(configuration.Policy.Store.Url)
-	if err != nil {
-		log.Println("store url error", err)
-	}
-	switch sURL.Scheme {
-	case "mongodb":
-		info, err := dialMgo(*configuration.Policy.Store)
-		if err == nil {
-			policyReader = policy.RegisterStoreProviderMgo(&info)
-		}
-	case "redis":
-		c, err := dialRedis(*configuration.Policy.Store)
-		if err == nil {
-			policyReader = policy.RegisterStoreProviderRedis(c)
-		}
-	default:
-		policyReader = policy.RegisterStoreProviderMemdb()
-	}
-	if policyReader == nil {
-		log.Fatal("policyReader uninitialized")
-	}
 	// role
 	var roleReader security.RoleReader
 	sURL, err = url.Parse(configuration.Role.Store.Url)
 	if err != nil {
-		log.Println("store url error", err)
+		log.Println("role url error", err)
 	}
 	switch sURL.Scheme {
 	case "mongodb":
@@ -131,14 +93,7 @@ func main() {
 			roleReader = role.RegisterStoreProviderMgo(&info)
 		}
 	case "postgres":
-		db, err := sql.Open("postgres", sURL.String())
-		if err != nil {
-			log.Println(err)
-		}
-		err = db.Ping()
-		if err != nil {
-			log.Println(err)
-		}
+		db, err := dialPostgres(*configuration.Role.Store)
 		if err == nil {
 			roleReader = role.RegisterStoreProviderPostgres(db)
 		}
@@ -156,7 +111,7 @@ func main() {
 	// session
 	sURL, err = url.Parse(configuration.Session.Store.Url)
 	if err != nil {
-		log.Println("store url error", err)
+		log.Println("session url error", err)
 	}
 	switch sURL.Scheme {
 	case "mongodb":
@@ -165,14 +120,7 @@ func main() {
 			session.RegisterStoreProviderMgo(&info)
 		}
 	case "postgres":
-		db, err := sql.Open("postgres", sURL.String())
-		if err != nil {
-			log.Println(err)
-		}
-		err = db.Ping()
-		if err != nil {
-			log.Println(err)
-		}
+		db, err := dialPostgres(*configuration.Session.Store)
 		if err == nil {
 			session.RegisterStoreProviderPostgres(db)
 		}
@@ -187,15 +135,13 @@ func main() {
 	// openapi paths
 	pa := spec.Paths{Paths: map[string]spec.PathItem{}}
 	// session
-	session.RegisterHttpHandler(pa, accountReader, roleReader, policyReader)
+	session.RegisterHttpHandler(pa, accountReader, roleReader)
 	// role
 	role.RegisterHttpHandler(pa)
 	// permission
 	permission.RegisterHttpHandler(pa)
 	// account
-	account.RegisterHttpHandler(pa, accountReader)
-	// policy
-	policy.RegisterHttpHandler(pa)
+	account.HandlePath(pa, accountReader)
 	// openapi handler
 	http.HandleFunc("/api", rest.HandlerFunc(pa))
 	// interrupt
@@ -221,7 +167,7 @@ func main() {
 				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			},
-			PreferServerCipherSuites: true,
+			PreferServerCipherSuites: configuration.Server.Tls.PreferServerCipherSuites,
 			CurvePreferences: []tls.CurveID{
 				tls.CurveP256,
 				tls.X25519,
@@ -239,6 +185,35 @@ func main() {
 	}()
 	<-stop
 	server.Shutdown(context.Background())
+}
+
+func dialPostgres(c security.Configuration_Store) (*sql.DB, error) {
+	db, err := sql.Open("postgres", c.Url)
+	if err != nil {
+		log.Println("postgres url error", err)
+	}
+	err = db.Ping()
+	if err != nil {
+		log.Println("postgres dial error", err)
+	}
+	return db, err
+}
+
+func dialMongo(c security.Configuration_Store) (*mgo.Session, error) {
+	info, err := mgo.ParseURL(c.Url)
+	if err != nil {
+		log.Println("mongodb url error", err)
+		return nil, err
+	}
+	// connection test fast
+	temp := info.FailFast
+	info.FailFast = true
+	s, err := mgo.DialWithInfo(info)
+	if err != nil {
+		log.Println("mongodb dial error", err)
+	}
+	info.FailFast = temp
+	return s, err
 }
 
 func dialMgo(c security.Configuration_Store) (mgo.DialInfo, error) {

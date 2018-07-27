@@ -9,20 +9,22 @@ import (
 
 	"secure-rest-server/security"
 	"secure-rest-server/security/authorization"
+	"secure-rest-server/security/policy"
 	"secure-rest-server/security/rest"
 
 	"github.com/go-openapi/spec"
 )
 
 var (
-	sessionCREATE            = spec.NewOperation("sessionCreate")
-	sessionREAD              = spec.NewOperation("sessionRead")
-	sessionTERMINATE         = spec.NewOperation("sessionTerminate")
+	sessionCREATE    = spec.NewOperation("sessionCreate")
+	sessionREAD      = spec.NewOperation("sessionRead")
+	sessionTERMINATE = spec.NewOperation("sessionTerminate")
+	// reader
+	accountReader security.AccountReader
+	roleReader    security.RoleReader
+	// parameter
 	accountParameterName     spec.Parameter
 	accountParameterPassword spec.Parameter
-	accountReader            security.AccountReader
-	roleReader               security.RoleReader
-	policyReader             security.PolicyReader
 )
 
 // HandlerFunc checks session cookie and CSRF header
@@ -45,7 +47,7 @@ func HandlerFunc(f http.HandlerFunc) http.HandlerFunc {
 			log.Println("session not found")
 			return
 		}
-		if enforceCsrf(policyReader) && ss.Csrf != r.Header.Get("x-csrf-token") {
+		if enforceCsrf() && ss.Csrf != r.Header.Get("x-csrf-token") {
 			w.Header().Set("content-type", "text/plain")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
@@ -57,10 +59,9 @@ func HandlerFunc(f http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func RegisterHttpHandler(paths spec.Paths, ar security.AccountReader, rr security.RoleReader, pr security.PolicyReader) {
+func RegisterHttpHandler(paths spec.Paths, ar security.AccountReader, rr security.RoleReader) {
 	accountReader = ar
 	roleReader = rr
-	policyReader = pr
 	p := "/session"
 	http.HandleFunc(p, HandlerFunc(serveHTTP))
 	paths.Paths[p] = spec.PathItem{
@@ -97,9 +98,9 @@ func RegisterHttpHandler(paths spec.Paths, ar security.AccountReader, rr securit
 			Required: true,
 			Schema: &spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					MinLength: &[]int64{2}[0],
-					MaxLength: &[]int64{1024}[0],
-					Pattern:   "[0-9a-fA-F]",
+					MinLength: &[]int64{int64(policy.Password.LengthMinimum)}[0],
+					MaxLength: &[]int64{int64(policy.Password.LengthMaximum)}[0],
+					Pattern:   policy.Password.Pattern,
 				},
 			},
 		},
@@ -162,7 +163,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		enforce, roles := enforceAuthenticateInitial(policyReader, ac.State)
+		enforce, roles := enforceAuthenticateInitial(ac.State)
 		if enforce {
 			ac.Roles = roles
 		}

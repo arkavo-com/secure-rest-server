@@ -29,6 +29,10 @@ message Configuration {
         string certificate = 2;
         string key = 3;
         string origin = 4;
+        Tls tls = 5;
+        message Tls {
+            bool preferServerCipherSuites = 1;
+        }
     }
     message Store {
         string url = 1;

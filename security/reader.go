@@ -7,7 +7,3 @@ type AccountReader interface {
 type RoleReader interface {
 	ReadRole(name string) (*Role, error)
 }
-
-type PolicyReader interface {
-	ReadPolicy() *Policy
-}
