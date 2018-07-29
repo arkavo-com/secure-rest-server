@@ -65,9 +65,7 @@ func getSet(httpClient httpGetter) {
 		Origin:      "https://localhost:3000",
 		Key:         "server.key",
 		Certificate: "server.pem",
-		Tls: &security.Configuration_Server_Tls{
-			PreferServerCipherSuites: true,
-		},
+		Host: "localhost:1337",
 	}
 	// get
 	r, err := httpClient.Get("http://127.0.0.1:8500/v1/kv/arkavo/configuration?raw")

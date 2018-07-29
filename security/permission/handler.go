@@ -25,11 +25,15 @@ var (
 			Parameters: []spec.Parameter{
 				rest.BodyParameter(spec.Schema{
 					SchemaProps: spec.SchemaProps{
-						Required:   []string{"class", "actions"},
-						Properties: map[string]spec.Schema{},
+						Required: []string{"class", "actions"},
+						Properties: map[string]spec.Schema{
+							"class":   {},
+							"actions": {},
+						},
 					},
 				}),
 			},
+			Responses: rest.CreateResponses(),
 		},
 	}
 	operationRead = &spec.Operation{
@@ -39,10 +43,21 @@ var (
 			Parameters: []spec.Parameter{
 				parameterClass,
 			},
+			Responses: rest.ReadResponses(),
+		},
+	}
+	operationReadAll = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:        "permissionReadAll",
+			Produces:  []string{"application/json"},
+			Responses: rest.ReadResponses(),
 		},
 	}
 	// parameter
 	parameterClass = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:     "class",
 			In:       "path",
@@ -54,12 +69,6 @@ var (
 					Pattern:   policy.Password.Pattern,
 				},
 			},
-		},
-	}
-	operationReadAll = &spec.Operation{
-		OperationProps: spec.OperationProps{
-			ID:       "permissionReadAll",
-			Produces: []string{"application/json"},
 		},
 	}
 	// TODO move to storer

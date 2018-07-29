@@ -24,11 +24,15 @@ var (
 			Parameters: []spec.Parameter{
 				rest.BodyParameter(spec.Schema{
 					SchemaProps: spec.SchemaProps{
-						Required:   []string{"name", "permissions"},
-						Properties: map[string]spec.Schema{},
+						Required: []string{"name", "permissions"},
+						Properties: map[string]spec.Schema{
+							"name":        {},
+							"permissions": {},
+						},
 					},
 				}),
 			},
+			Responses: rest.CreateResponses(),
 		},
 	}
 	operationRead = &spec.Operation{
@@ -38,12 +42,14 @@ var (
 			Parameters: []spec.Parameter{
 				parameterName,
 			},
+			Responses: rest.ReadResponses(),
 		},
 	}
 	operationReadAll = &spec.Operation{
 		OperationProps: spec.OperationProps{
-			ID:       "roleReadAll",
-			Produces: []string{"application/json"},
+			ID:        "roleReadAll",
+			Produces:  []string{"application/json"},
+			Responses: rest.ReadResponses(),
 		},
 	}
 	operationUpdate = &spec.Operation{
@@ -61,13 +67,14 @@ var (
 						In:   "body",
 						Schema: &spec.Schema{
 							SchemaProps: spec.SchemaProps{
-								Required: []string{"name", "permissions", "state"},
+								Required: []string{"permissions"},
 								Properties: map[string]spec.Schema{
 									"name": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
 											ReadOnly: true,
 										},
 									},
+									"permissions": {},
 									"state": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
 											ReadOnly: true,
@@ -79,6 +86,7 @@ var (
 					},
 				},
 			},
+			Responses: rest.UpdateResponses(),
 		},
 	}
 	operationDelete = &spec.Operation{
@@ -87,10 +95,14 @@ var (
 			Parameters: []spec.Parameter{
 				parameterName,
 			},
+			Responses: rest.DeleteResponses(),
 		},
 	}
 	// parameter
 	parameterName = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:     "name",
 			In:       "path",
@@ -105,6 +117,9 @@ var (
 		},
 	}
 	parameterActivate = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:            security.Role_ACTIVATE.String(),
 			In:              "query",
@@ -113,6 +128,9 @@ var (
 		},
 	}
 	parameterDeactivate = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:            security.Role_DEACTIVATE.String(),
 			In:              "query",

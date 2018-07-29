@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"secure-rest-server/security/configuration"
+
 	"github.com/go-openapi/spec"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
@@ -28,12 +30,15 @@ func HandlerFunc(paths spec.Paths) http.HandlerFunc {
 		swagger := &spec.Swagger{
 			SwaggerProps: spec.SwaggerProps{
 				Swagger: "2.0",
-				Paths:   &paths,
+				Host:    configuration.Server.Host,
+				Schemes: []string{"https"},
 				Info: &spec.Info{
 					InfoProps: spec.InfoProps{
-						Title: "arkavo",
+						Title:   "arkavo",
+						Version: "1.0.0",
 					},
 				},
+				Paths:       &paths,
 				Definitions: definitions,
 				Security: []map[string][]string{
 					{"cookieAuth": {}},
@@ -183,6 +188,141 @@ func BodyParameter(s spec.Schema) spec.Parameter {
 			In:       "body",
 			Required: true,
 			Schema:   &s,
+		},
+	}
+}
+
+// ReadResponses responses for read operation
+func ReadResponses() *spec.Responses {
+	return &spec.Responses{
+		ResponsesProps: spec.ResponsesProps{
+			StatusCodeResponses: map[int]spec.Response{
+				http.StatusOK: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusOK),
+					},
+				},
+				http.StatusBadRequest: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusBadRequest),
+					},
+				},
+				http.StatusUnauthorized: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusUnauthorized),
+					},
+				},
+				http.StatusForbidden: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusForbidden),
+					},
+				},
+				http.StatusNotFound: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusNotFound),
+					},
+				},
+			},
+		},
+	}
+}
+
+// CreateResponses responses for create operation
+func CreateResponses() *spec.Responses {
+	return &spec.Responses{
+		ResponsesProps: spec.ResponsesProps{
+			StatusCodeResponses: map[int]spec.Response{
+				http.StatusCreated: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusCreated),
+					},
+				},
+				http.StatusBadRequest: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusBadRequest),
+					},
+				},
+				http.StatusUnauthorized: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusUnauthorized),
+					},
+				},
+				http.StatusForbidden: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusForbidden),
+					},
+				},
+			},
+		},
+	}
+}
+
+// UpdateResponses responses for update operation
+func UpdateResponses() *spec.Responses {
+	return &spec.Responses{
+		ResponsesProps: spec.ResponsesProps{
+			StatusCodeResponses: map[int]spec.Response{
+				http.StatusOK: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusOK),
+					},
+				},
+				http.StatusNotModified: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusNotModified),
+					},
+				},
+				http.StatusBadRequest: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusBadRequest),
+					},
+				},
+				http.StatusUnauthorized: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusUnauthorized),
+					},
+				},
+				http.StatusForbidden: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusForbidden),
+					},
+				},
+				http.StatusNotFound: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusNotFound),
+					},
+				},
+			},
+		},
+	}
+}
+
+// DeleteResponses responses for delete operation
+func DeleteResponses() *spec.Responses {
+	return &spec.Responses{
+		ResponsesProps: spec.ResponsesProps{
+			StatusCodeResponses: map[int]spec.Response{
+				http.StatusNoContent: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusNoContent),
+					},
+				},
+				http.StatusUnauthorized: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusUnauthorized),
+					},
+				},
+				http.StatusForbidden: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusForbidden),
+					},
+				},
+				http.StatusNotFound: {
+					ResponseProps: spec.ResponseProps{
+						Description: http.StatusText(http.StatusNotFound),
+					},
+				},
+			},
 		},
 	}
 }

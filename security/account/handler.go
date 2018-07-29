@@ -35,6 +35,7 @@ var (
 					},
 				}),
 			},
+			Responses: rest.CreateResponses(),
 		},
 	}
 	operationRead = &spec.Operation{
@@ -44,12 +45,14 @@ var (
 			Parameters: []spec.Parameter{
 				parameterName,
 			},
+			Responses: rest.ReadResponses(),
 		},
 	}
 	operationReadAll = &spec.Operation{
 		OperationProps: spec.OperationProps{
-			ID:       "accountReadAll",
-			Produces: []string{"application/json"},
+			ID:        "accountReadAll",
+			Produces:  []string{"application/json"},
+			Responses: rest.ReadResponses(),
 		},
 	}
 	operationUpdate = &spec.Operation{
@@ -69,13 +72,14 @@ var (
 						In:   "body",
 						Schema: &spec.Schema{
 							SchemaProps: spec.SchemaProps{
-								Required: []string{"name", "roles"},
+								Required: []string{"roles"},
 								Properties: map[string]spec.Schema{
 									"name": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
 											ReadOnly: true,
 										},
 									},
+									"roles": {},
 									"state": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
 											ReadOnly: true,
@@ -87,6 +91,7 @@ var (
 					},
 				},
 			},
+			Responses: rest.UpdateResponses(),
 		},
 	}
 	operationUpdatePassword = &spec.Operation{
@@ -98,6 +103,7 @@ var (
 				parameterName,
 				parameterPassword,
 			},
+			Responses: rest.UpdateResponses(),
 		},
 	}
 	operationDelete = &spec.Operation{
@@ -106,6 +112,7 @@ var (
 			Parameters: []spec.Parameter{
 				parameterName,
 			},
+			Responses: rest.DeleteResponses(),
 		},
 	}
 	// parameter

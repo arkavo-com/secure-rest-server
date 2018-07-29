@@ -26,25 +26,28 @@ var (
 				parameterAccountName,
 				parameterAccountPassword,
 			},
+			Responses: rest.CreateResponses(),
 		},
 	}
 	operationRead = &spec.Operation{
 		OperationProps: spec.OperationProps{
-			ID:       "sessionRead",
-			Produces: []string{"application/json"},
+			ID:        "sessionRead",
+			Produces:  []string{"application/json"},
+			Responses: rest.ReadResponses(),
 		},
 	}
 	operationTerminate = &spec.Operation{
 		OperationProps: spec.OperationProps{
-			ID:       "sessionTerminate",
-			Produces: []string{"application/json"},
-			Parameters: []spec.Parameter{
-				parameterAccountName,
-			},
+			ID:        "sessionTerminate",
+			Produces:  []string{"application/json"},
+			Responses: rest.DeleteResponses(),
 		},
 	}
 	// parameter
 	parameterAccountName = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:     "name",
 			In:       "path",
@@ -59,6 +62,9 @@ var (
 		},
 	}
 	parameterAccountPassword = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:     "p",
 			In:       "formData",
