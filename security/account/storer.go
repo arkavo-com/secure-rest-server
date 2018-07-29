@@ -2,10 +2,10 @@ package account
 
 import (
 	"database/sql"
-	"errors"
 	"log"
 
 	"secure-rest-server/security"
+	"secure-rest-server/security/rest"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -29,18 +29,15 @@ const (
 )
 
 var (
-	s store
-	// error
-	ErrNotFound  = errors.New("not found")
-	ErrDuplicate = errors.New("duplicate")
+	s Store
 )
 
 // StoreMongo initializes store, call once
-func StoreMongo(session *mgo.Session) *store {
+func StoreMongo(session *mgo.Session) *Store {
 	if s.provider != 0 {
 		return nil
 	}
-	s = store{
+	s = Store{
 		provider: mongodbStore,
 		mongo:    session,
 	}
@@ -48,11 +45,11 @@ func StoreMongo(session *mgo.Session) *store {
 }
 
 // StorePostgres initializes store, call once
-func StorePostgres(db *sql.DB) *store {
+func StorePostgres(db *sql.DB) *Store {
 	if s.provider != 0 {
 		return nil
 	}
-	s = store{
+	s = Store{
 		provider: postgresStore,
 		postgres: db,
 	}
@@ -60,11 +57,11 @@ func StorePostgres(db *sql.DB) *store {
 }
 
 // StoreRedis initializes store, call once
-func StoreRedis(c redis.Conn) *store {
+func StoreRedis(c redis.Conn) *Store {
 	if s.provider != 0 {
 		return nil
 	}
-	s = store{
+	s = Store{
 		provider: redisStore,
 		redis: &redis.Pool{
 			Dial: func() (redis.Conn, error) {
@@ -76,7 +73,7 @@ func StoreRedis(c redis.Conn) *store {
 }
 
 // StoreMem development use only.  Default user admin:nimda
-func StoreMem() *store {
+func StoreMem() *Store {
 	if s.provider != 0 {
 		return nil
 	}
@@ -97,7 +94,7 @@ func StoreMem() *store {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s = store{
+	s = Store{
 		provider: memdbStore,
 		mem:      db,
 	}
@@ -110,7 +107,8 @@ func StoreMem() *store {
 	return &s
 }
 
-type store struct {
+// Store manages various storage mechanisms
+type Store struct {
 	provider storeProvider
 	mongo    *mgo.Session
 	redis    *redis.Pool
@@ -118,20 +116,20 @@ type store struct {
 	postgres *sql.DB
 }
 
-func (s *store) c() *mgo.Collection {
+func (s *Store) c() *mgo.Collection {
 	return s.mongo.Clone().DB("").C(collection)
 }
 
-func (s *store) get() redis.Conn {
+func (s *Store) get() redis.Conn {
 	return s.redis.Get()
 }
 
-func (s *store) createAccount(a *security.Account) error {
+func (s *Store) createAccount(a *security.Account) error {
 	switch s.provider {
 	case mongodbStore:
 		err := s.c().Insert(a)
 		if mgo.IsDup(err) {
-			return ErrDuplicate
+			return rest.ErrDuplicate
 		}
 		return err
 	case postgresStore:
@@ -144,7 +142,7 @@ func (s *store) createAccount(a *security.Account) error {
 		if err != nil {
 			if err, ok := err.(*pq.Error); ok {
 				if err.Code == "23505" {
-					return ErrDuplicate
+					return rest.ErrDuplicate
 				}
 			}
 			return err
@@ -166,7 +164,7 @@ func (s *store) createAccount(a *security.Account) error {
 		}
 		if raw != nil {
 			txn.Abort()
-			return ErrDuplicate
+			return rest.ErrDuplicate
 		}
 		err = txn.Insert(collection, a)
 		if err != nil {
@@ -180,7 +178,7 @@ func (s *store) createAccount(a *security.Account) error {
 }
 
 // readAccounts
-func (s *store) readAccounts() ([]*security.Account, error) {
+func (s *Store) readAccounts() ([]*security.Account, error) {
 	var accounts []*security.Account
 	switch s.provider {
 	case mongodbStore:
@@ -197,7 +195,7 @@ func (s *store) readAccounts() ([]*security.Account, error) {
 		defer rows.Close()
 		for rows.Next() {
 			var a security.Account
-			err := rows.Scan(&a.Name, &a.Salt, &a.Hash, &a.State, pq.Array(&a.Roles))
+			err = rows.Scan(&a.Name, &a.Salt, &a.Hash, &a.State, pq.Array(&a.Roles))
 			if err != nil {
 				return nil, err
 			}
@@ -218,11 +216,11 @@ func (s *store) readAccounts() ([]*security.Account, error) {
 		}
 		return accounts, err
 	}
-	return nil, ErrNotFound
+	return nil, rest.ErrNotFound
 }
 
 // ReadAccount name = Account.name
-func (s *store) ReadAccount(name string) (*security.Account, error) {
+func (s *Store) ReadAccount(name string) (*security.Account, error) {
 	var a security.Account
 	switch s.provider {
 	case mongodbStore:
@@ -236,7 +234,7 @@ func (s *store) ReadAccount(name string) (*security.Account, error) {
 		err := s.postgres.QueryRow(sqlstr, name).Scan(&a.Name, &a.Salt, &a.Hash, &a.State, pq.Array(&a.Roles))
 		if err != nil {
 			if sql.ErrNoRows == err {
-				return &a, ErrNotFound
+				return &a, rest.ErrNotFound
 			}
 			return &a, err
 		}
@@ -248,7 +246,7 @@ func (s *store) ReadAccount(name string) (*security.Account, error) {
 		}
 		err = proto.Unmarshal(b, &a)
 		if err != nil {
-			return nil, ErrNotFound
+			return nil, rest.ErrNotFound
 		}
 		return &a, err
 	case memdbStore:
@@ -259,14 +257,14 @@ func (s *store) ReadAccount(name string) (*security.Account, error) {
 			return nil, err
 		}
 		if raw == nil {
-			return nil, ErrNotFound
+			return nil, rest.ErrNotFound
 		}
 		return raw.(*security.Account), err
 	}
-	return nil, ErrNotFound
+	return nil, rest.ErrNotFound
 }
 
-func (s *store) updateAccount(a *security.Account) error {
+func (s *Store) updateAccount(a *security.Account) error {
 	switch s.provider {
 	case mongodbStore:
 		return s.c().Update(bson.M{"name": a.Name}, &a)
@@ -294,7 +292,7 @@ func (s *store) updateAccount(a *security.Account) error {
 		}
 		if raw == nil {
 			txn.Abort()
-			return ErrNotFound
+			return rest.ErrNotFound
 		}
 		err = txn.Insert(collection, a)
 		if err != nil {
@@ -307,7 +305,7 @@ func (s *store) updateAccount(a *security.Account) error {
 	return nil
 }
 
-func (s *store) deleteAccount(name string) error {
+func (s *Store) deleteAccount(name string) error {
 	switch s.provider {
 	case mongodbStore:
 		return s.c().Remove(name)
@@ -327,7 +325,7 @@ func (s *store) deleteAccount(name string) error {
 		}
 		if raw == nil {
 			txn.Abort()
-			return ErrNotFound
+			return rest.ErrNotFound
 		}
 		err = txn.Delete(collection, raw)
 		if err != nil {

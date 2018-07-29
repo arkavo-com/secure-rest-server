@@ -147,7 +147,7 @@ func TestValidate(t *testing.T) {
 		Prop3: 1,
 	}
 	b, _ := (&jsonpb.Marshaler{}).MarshalToString(&pb)
-	w := testHttpWriter{
+	w := testHTTPWriter{
 		h: http.Header{},
 	}
 	w.h.Add("content-type", "application/json")
@@ -160,13 +160,13 @@ func TestValidate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-type testHttpWriter struct {
+type testHTTPWriter struct {
 	h http.Header
 }
 
-func (w testHttpWriter) Header() http.Header               { return w.h }
-func (w testHttpWriter) WriteHeader(int)                   {} // no headers
-func (w testHttpWriter) Write(p []byte) (n int, err error) { return 0, nil }
+func (w testHTTPWriter) Header() http.Header               { return w.h }
+func (w testHTTPWriter) WriteHeader(int)                   {} // no headers
+func (w testHTTPWriter) Write(p []byte) (n int, err error) { return 0, nil }
 
 type message struct {
 	Name  string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`

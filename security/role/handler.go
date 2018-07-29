@@ -121,6 +121,7 @@ var (
 		},
 	}
 )
+
 // HandlePath registers http.HandleFunc and spec.Operation for paths
 func HandlePath(paths spec.Paths) {
 	p := "/role"
@@ -172,7 +173,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		// state
 		role.State = transition(role.State, security.Role_CREATE)
 		err = s.createRole(&role)
-		if err == ErrDuplicate {
+		if err == rest.ErrDuplicate {
 			err = rest.ValidationErrors{
 				rest.ValidationError{
 					Property: "name",
@@ -227,12 +228,12 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 			}
 			role.State = ns
 		} else {
-			new := security.Role{}
-			err = rest.Validate(r, operationUpdate, &new)
+			nr := security.Role{}
+			err = rest.Validate(r, operationUpdate, &nr)
 			if rest.Errored(w, err) {
 				return
 			}
-			role.Permissions = new.Permissions
+			role.Permissions = nr.Permissions
 		}
 		err = s.updateRole(role)
 		if rest.Errored(w, err) {

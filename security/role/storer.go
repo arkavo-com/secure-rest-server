@@ -2,10 +2,10 @@ package role
 
 import (
 	"database/sql"
-	"errors"
 	"log"
 
 	"secure-rest-server/security"
+	"secure-rest-server/security/rest"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -29,10 +29,7 @@ const (
 )
 
 var (
-	s store
-	// error
-	ErrNotFound  = errors.New("not found")
-	ErrDuplicate = errors.New("duplicate")
+	s Store
 	// standard
 	administratorRole = security.Role{
 		Name: "Administrator",
@@ -48,11 +45,11 @@ var (
 )
 
 // StoreMongo initializes store, call once
-func StoreMongo(session *mgo.Session) *store {
+func StoreMongo(session *mgo.Session) *Store {
 	if s.provider != 0 {
 		return nil
 	}
-	s = store{
+	s = Store{
 		provider: mongodbStore,
 		mongo:    session,
 	}
@@ -61,11 +58,11 @@ func StoreMongo(session *mgo.Session) *store {
 }
 
 // StorePostgres initializes store, call once
-func StorePostgres(db *sql.DB) *store {
+func StorePostgres(db *sql.DB) *Store {
 	if s.provider != 0 {
 		return nil
 	}
-	s = store{
+	s = Store{
 		provider: postgresStore,
 		postgres: db,
 	}
@@ -74,11 +71,11 @@ func StorePostgres(db *sql.DB) *store {
 }
 
 // StoreRedis initializes store, call once
-func StoreRedis(c redis.Conn) *store {
+func StoreRedis(c redis.Conn) *Store {
 	if s.provider != 0 {
 		return nil
 	}
-	s = store{
+	s = Store{
 		provider: redisStore,
 		redis: &redis.Pool{
 			Dial: func() (redis.Conn, error) {
@@ -91,7 +88,7 @@ func StoreRedis(c redis.Conn) *store {
 }
 
 // StoreMem development use only.
-func StoreMem() *store {
+func StoreMem() *Store {
 	if s.provider != 0 {
 		return nil
 	}
@@ -112,7 +109,7 @@ func StoreMem() *store {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s = store{
+	s = Store{
 		provider: memdbStore,
 		mem:      db,
 	}
@@ -120,7 +117,8 @@ func StoreMem() *store {
 	return &s
 }
 
-type store struct {
+// Store manages various storage mechanisms
+type Store struct {
 	provider storeProvider
 	mongo    *mgo.Session
 	redis    *redis.Pool
@@ -128,15 +126,15 @@ type store struct {
 	postgres *sql.DB
 }
 
-func (s *store) c() *mgo.Collection {
+func (s *Store) c() *mgo.Collection {
 	return s.mongo.Clone().DB("").C(collection)
 }
 
-func (s *store) get() redis.Conn {
+func (s *Store) get() redis.Conn {
 	return s.redis.Get()
 }
 
-func (s *store) createRole(r *security.Role) error {
+func (s *Store) createRole(r *security.Role) error {
 	switch s.provider {
 	case mongodbStore:
 		return s.c().Insert(r)
@@ -154,7 +152,7 @@ func (s *store) createRole(r *security.Role) error {
 		if err != nil {
 			if err, ok := err.(*pq.Error); ok {
 				if err.Code == "23505" {
-					return ErrDuplicate
+					return rest.ErrDuplicate
 				}
 			}
 			return err
@@ -189,7 +187,7 @@ func (s *store) createRole(r *security.Role) error {
 		}
 		if raw != nil {
 			txn.Abort()
-			return ErrDuplicate
+			return rest.ErrDuplicate
 		}
 		err = txn.Insert(collection, r)
 		if err != nil {
@@ -202,14 +200,14 @@ func (s *store) createRole(r *security.Role) error {
 	return nil
 }
 
-func (s *store) readRoles() ([]*security.Role, error) {
+func (s *Store) readRoles() ([]*security.Role, error) {
 	var roles []*security.Role
 	switch s.provider {
 	case mongodbStore:
 		err := s.c().Find(nil).All(&roles)
 		return roles, err
 	case postgresStore:
-		roleMap := make(map[string]*security.Role, 0)
+		roleMap := make(map[string]*security.Role)
 		const sqlstr = `SELECT ` +
 			`role_name, role_state ` +
 			`FROM ` + collection
@@ -220,7 +218,7 @@ func (s *store) readRoles() ([]*security.Role, error) {
 		defer rows.Close()
 		for rows.Next() {
 			var r security.Role
-			err := rows.Scan(&r.Name, &r.State)
+			err = rows.Scan(&r.Name, &r.State)
 			if err != nil {
 				return nil, err
 			}
@@ -238,7 +236,7 @@ func (s *store) readRoles() ([]*security.Role, error) {
 		for rowsSec.Next() {
 			var roleName string
 			var p security.Permission
-			err := rowsSec.Scan(&roleName, &p.Class, pq.Array(&p.Actions))
+			err = rowsSec.Scan(&roleName, &p.Class, pq.Array(&p.Actions))
 			if err != nil {
 				return nil, err
 			}
@@ -253,7 +251,6 @@ func (s *store) readRoles() ([]*security.Role, error) {
 		if err != nil {
 			return nil, err
 		}
-		var roles []*security.Role
 		for raw := result.Next(); raw != nil; raw = result.Next() {
 			roles = append(roles, raw.(*security.Role))
 		}
@@ -262,7 +259,8 @@ func (s *store) readRoles() ([]*security.Role, error) {
 	return roles, nil
 }
 
-func (s *store) ReadRole(name string) (*security.Role, error) {
+// ReadRole return role with name
+func (s *Store) ReadRole(name string) (*security.Role, error) {
 	var r security.Role
 	switch s.provider {
 	case mongodbStore:
@@ -288,7 +286,7 @@ func (s *store) ReadRole(name string) (*security.Role, error) {
 		defer rows.Close()
 		for rows.Next() {
 			var p security.Permission
-			err := rows.Scan(&p.Class, pq.Array(&p.Actions))
+			err = rows.Scan(&p.Class, pq.Array(&p.Actions))
 			if err != nil {
 				return nil, err
 			}
@@ -314,14 +312,14 @@ func (s *store) ReadRole(name string) (*security.Role, error) {
 			return nil, err
 		}
 		if raw == nil {
-			return nil, ErrNotFound
+			return nil, rest.ErrNotFound
 		}
 		return raw.(*security.Role), err
 	}
 	return &r, nil
 }
 
-func (s *store) updateRole(r *security.Role) error {
+func (s *Store) updateRole(r *security.Role) error {
 	switch s.provider {
 	case mongodbStore:
 		return s.c().Update(bson.M{"name": r.Name}, r)
@@ -375,7 +373,7 @@ func (s *store) updateRole(r *security.Role) error {
 		}
 		if raw == nil {
 			txn.Abort()
-			return ErrNotFound
+			return rest.ErrNotFound
 		}
 		err = txn.Insert(collection, r)
 		if err != nil {
@@ -388,7 +386,7 @@ func (s *store) updateRole(r *security.Role) error {
 	return nil
 }
 
-func (s *store) deleteRole(name string) error {
+func (s *Store) deleteRole(name string) error {
 	switch s.provider {
 	case mongodbStore:
 		return s.c().Remove(bson.M{"name": name})
@@ -423,7 +421,7 @@ func (s *store) deleteRole(name string) error {
 		}
 		if raw == nil {
 			txn.Abort()
-			return ErrNotFound
+			return rest.ErrNotFound
 		}
 		err = txn.Delete(collection, raw)
 		if err != nil {

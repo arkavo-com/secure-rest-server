@@ -10,12 +10,18 @@ import (
 )
 
 var (
-	Account    security.Configuration_Account
+	// Account configuration
+	Account security.Configuration_Account
+	// Permission configuration
 	Permission security.Configuration_Permission
-	Policy     security.Configuration_Policy
-	Role       security.Configuration_Role
-	Session    security.Configuration_Session
-	Server     security.Configuration_Server
+	// Policy configuration
+	Policy security.Configuration_Policy
+	// Role configuration
+	Role security.Configuration_Role
+	// Session configuration
+	Session security.Configuration_Session
+	// Server configuration
+	Server security.Configuration_Server
 )
 
 type httpGetter interface {

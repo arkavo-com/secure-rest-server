@@ -27,8 +27,11 @@ var (
 			Parameters: []spec.Parameter{
 				rest.BodyParameter(spec.Schema{
 					SchemaProps: spec.SchemaProps{
-						Required:   []string{"name", "roles"},
-						Properties: map[string]spec.Schema{},
+						Required: []string{"name", "roles"},
+						Properties: map[string]spec.Schema{
+							"name":  {},
+							"roles": {},
+						},
 					},
 				}),
 			},
@@ -107,6 +110,9 @@ var (
 	}
 	// parameter
 	parameterName = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:     "name",
 			In:       "path",
@@ -121,6 +127,9 @@ var (
 		},
 	}
 	parameterPassword = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:     "p",
 			In:       "formData",
@@ -135,6 +144,9 @@ var (
 		},
 	}
 	parameterActivate = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:            security.Account_ACTIVATE.String(),
 			In:              "query",
@@ -143,6 +155,9 @@ var (
 		},
 	}
 	parameterDeactivate = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:            security.Account_DEACTIVATE.String(),
 			In:              "query",
@@ -151,6 +166,9 @@ var (
 		},
 	}
 	parameterLock = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:            security.Account_LOCK.String(),
 			In:              "query",
@@ -159,6 +177,9 @@ var (
 		},
 	}
 	parameterInitialize = spec.Parameter{
+		SimpleSchema: spec.SimpleSchema{
+			Type: "string",
+		},
 		ParamProps: spec.ParamProps{
 			Name:            security.Account_INITIALIZE.String(),
 			In:              "query",
@@ -167,6 +188,7 @@ var (
 		},
 	}
 )
+
 // HandlePath registers http.HandleFunc and spec.Operation for paths
 func HandlePath(paths spec.Paths, ar security.AccountReader) {
 	p := "/account"
@@ -228,7 +250,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		rand.Read(token)
 		a.Salt = base32.StdEncoding.EncodeToString(token)
 		err = s.createAccount(&a)
-		if err == ErrDuplicate {
+		if err == rest.ErrDuplicate {
 			err = rest.ValidationErrors{
 				rest.ValidationError{
 					Property: "name",
@@ -283,12 +305,12 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 			}
 			a.State = ns
 		} else {
-			new := security.Account{}
-			err = rest.Validate(r, operationUpdate, &new)
+			na := security.Account{}
+			err = rest.Validate(r, operationUpdate, &na)
 			if rest.Errored(w, err) {
 				return
 			}
-			a.Roles = new.Roles
+			a.Roles = na.Roles
 		}
 		err = s.updateAccount(a)
 		if rest.Errored(w, err) {
@@ -313,7 +335,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		err = s.updateAccount(a)
+		err = s.deleteAccount(a.Name)
 		if rest.Errored(w, err) {
 			return
 		}

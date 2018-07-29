@@ -10,11 +10,16 @@ import (
 )
 
 var (
-	Account  security.Policy_Account
-	Audit    security.Policy_Audit
+	// Account policy
+	Account security.Policy_Account
+	// Audit policy
+	Audit security.Policy_Audit
+	// Password policy
 	Password security.Policy_Password
-	Role     security.Policy_Role
-	Session  security.Policy_Session
+	// Role policy
+	Role security.Policy_Role
+	// Session policy
+	Session security.Policy_Session
 )
 
 type httpGetter interface {
@@ -28,9 +33,9 @@ func init() {
 func getSet(httpClient httpGetter) {
 	// default
 	Account = security.Policy_Account{
-		LengthMinimum:                        5,
-		LengthMaximum:                        128,
-		Pattern:                              "[a-zA-Z0-9_@.-]",
+		LengthMinimum: 5,
+		LengthMaximum: 128,
+		Pattern:       "[a-zA-Z0-9_@.-]",
 		InactiveDurationConsequenceLock:       "90d",
 		InactiveDurationConsequenceDeactivate: "180d",
 	}

@@ -25,6 +25,12 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	mongodbStore  = "mongodb"
+	postgresStore = "postgres"
+	redisStore    = "redis"
+)
+
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
 	// account
@@ -34,17 +40,17 @@ func main() {
 		log.Println("account url error", err)
 	}
 	switch sURL.Scheme {
-	case "mongodb":
+	case mongodbStore:
 		s, err := dialMongo(*configuration.Account.Store)
 		if err == nil {
 			accountReader = account.StoreMongo(s)
 		}
-	case "postgres":
+	case postgresStore:
 		db, err := dialPostgres(*configuration.Account.Store)
 		if err == nil {
 			accountReader = account.StorePostgres(db)
 		}
-	case "redis":
+	case redisStore:
 		c, err := dialRedis(*configuration.Account.Store)
 		if err == nil {
 			accountReader = account.StoreRedis(c)
@@ -62,17 +68,17 @@ func main() {
 		log.Println("permission url error", err)
 	}
 	switch sURL.Scheme {
-	case "mongodb":
+	case mongodbStore:
 		s, err := dialMongo(*configuration.Permission.Store)
 		if err == nil {
 			permission.StoreMongo(s)
 		}
-	case "postgres":
+	case postgresStore:
 		db, err := dialPostgres(*configuration.Permission.Store)
 		if err == nil {
 			permission.StorePostgres(db)
 		}
-	case "redis":
+	case redisStore:
 		c, err := dialRedis(*configuration.Permission.Store)
 		if err == nil {
 			permission.StoreRedis(c)
@@ -87,18 +93,18 @@ func main() {
 		log.Println("role url error", err)
 	}
 	switch sURL.Scheme {
-	case "mongodb":
+	case mongodbStore:
 		s, err := dialMongo(*configuration.Role.Store)
 		if err == nil {
 			roleReader = role.StoreMongo(s)
 		}
-	case "postgres":
+	case postgresStore:
 		db, err := dialPostgres(*configuration.Role.Store)
 		if err == nil {
 			roleReader = role.StorePostgres(db)
 		}
-	case "redis":
-		c, _ := dialRedis(*configuration.Role.Store)
+	case redisStore:
+		c, err := dialRedis(*configuration.Role.Store)
 		if err == nil {
 			roleReader = role.StoreRedis(c)
 		}
@@ -114,18 +120,18 @@ func main() {
 		log.Println("session url error", err)
 	}
 	switch sURL.Scheme {
-	case "mongodb":
+	case mongodbStore:
 		s, err := dialMongo(*configuration.Session.Store)
 		if err == nil {
 			session.StoreMongo(s)
 		}
-	case "postgres":
+	case postgresStore:
 		db, err := dialPostgres(*configuration.Session.Store)
 		if err == nil {
 			session.StorePostgres(db)
 		}
-	case "redis":
-		c, _ := dialRedis(*configuration.Session.Store)
+	case redisStore:
+		c, err := dialRedis(*configuration.Session.Store)
 		if err == nil {
 			session.StoreRedis(c)
 		}
@@ -162,12 +168,10 @@ func main() {
 			CipherSuites: []uint16{
 				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			},
-			PreferServerCipherSuites: configuration.Server.Tls.PreferServerCipherSuites,
+			PreferServerCipherSuites: true,
 			CurvePreferences: []tls.CurveID{
 				tls.CurveP256,
 				tls.X25519,

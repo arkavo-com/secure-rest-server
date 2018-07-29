@@ -16,7 +16,7 @@ func TestPathHandlerFunc(t *testing.T) {
 		},
 		RequestURI: "/path/to/test/abc123",
 	}
-	w := testHttpWriter{
+	w := testHTTPWriter{
 		h: http.Header{},
 	}
 	PathHandlerFunc(path, func(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +33,7 @@ func TestPathHandlerFuncNo(t *testing.T) {
 		},
 		RequestURI: "/path/to/test0",
 	}
-	w := testHttpWriter{
+	w := testHTTPWriter{
 		h: http.Header{},
 	}
 	PathHandlerFunc(path, func(w http.ResponseWriter, r *http.Request) {

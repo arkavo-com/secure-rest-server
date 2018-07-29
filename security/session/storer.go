@@ -2,10 +2,10 @@ package session
 
 import (
 	"database/sql"
-	"errors"
 	"log"
 
 	"secure-rest-server/security"
+	"secure-rest-server/security/rest"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -29,38 +29,34 @@ const (
 
 var (
 	s store
-	// error
-	ErrNotFound = errors.New("not found")
 )
 
 // StoreMongo initializes store, call once
-func StoreMongo(session *mgo.Session) *store {
+func StoreMongo(session *mgo.Session) {
 	if s.provider != 0 {
-		return nil
+		return
 	}
 	s = store{
 		provider: mongodbStore,
 		mongo:    session,
 	}
-	return &s
 }
 
 // StorePostgres initializes store, call once
-func StorePostgres(db *sql.DB) *store {
+func StorePostgres(db *sql.DB) {
 	if s.provider != 0 {
-		return nil
+		return
 	}
 	s = store{
 		provider: postgresStore,
 		postgres: db,
 	}
-	return &s
 }
 
 // StoreRedis initializes store, call once
-func StoreRedis(c redis.Conn) *store {
+func StoreRedis(c redis.Conn) {
 	if s.provider != 0 {
-		return nil
+		return
 	}
 	s = store{
 		provider: redisStore,
@@ -70,13 +66,12 @@ func StoreRedis(c redis.Conn) *store {
 			},
 		},
 	}
-	return &s
 }
 
 // StoreMem development use only.  Default user admin:nimda
-func StoreMem() *store {
+func StoreMem() {
 	if s.provider != 0 {
-		return nil
+		return
 	}
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
@@ -99,7 +94,6 @@ func StoreMem() *store {
 		provider: memdbStore,
 		mem:      db,
 	}
-	return &s
 }
 
 type store struct {
@@ -127,7 +121,7 @@ func (s *store) createSession(ss security.Session) error {
 		if err != nil {
 			return err
 		}
-		_, err = s.redis.Get().Do("SET", ss.Id, b)
+		_, err = s.get().Do("SET", ss.Id, b)
 		return err
 	case memdbStore:
 		txn := s.mem.Txn(true)
@@ -156,7 +150,7 @@ func (s *store) readSession(si string) (*security.Session, error) {
 		ss := security.Session{}
 		err = proto.Unmarshal(b, &ss)
 		if err != nil {
-			return nil, ErrNotFound
+			return nil, rest.ErrNotFound
 		}
 		return &ss, nil
 	case memdbStore:
@@ -167,11 +161,11 @@ func (s *store) readSession(si string) (*security.Session, error) {
 			return nil, err
 		}
 		if raw == nil {
-			return nil, ErrNotFound
+			return nil, rest.ErrNotFound
 		}
 		return raw.(*security.Session), err
 	}
-	return nil, ErrNotFound
+	return nil, rest.ErrNotFound
 }
 
 func (s *store) deleteSession(id string) error {
@@ -179,7 +173,7 @@ func (s *store) deleteSession(id string) error {
 	case mongodbStore:
 		return s.c().Remove(bson.M{"id": id})
 	case redisStore:
-		_, err := s.redis.Get().Do("DEL", id)
+		_, err := s.get().Do("DEL", id)
 		return err
 	case memdbStore:
 		txn := s.mem.Txn(true)
@@ -190,7 +184,7 @@ func (s *store) deleteSession(id string) error {
 		}
 		if raw == nil {
 			txn.Abort()
-			return ErrNotFound
+			return rest.ErrNotFound
 		}
 		err = txn.Delete(collection, raw)
 		if err != nil {

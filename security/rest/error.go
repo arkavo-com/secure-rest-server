@@ -8,12 +8,17 @@ import (
 )
 
 var (
+	// ErrUnauthorized unauthorized error
 	ErrUnauthorized = errors.New("unauthorized")
-	ErrNotFound     = errors.New("not found")
-	ErrInvalid      = errors.New("invalid")
-	ErrDuplicate    = errors.New("duplicate")
+	// ErrNotFound not found error
+	ErrNotFound = errors.New("not found")
+	// ErrInvalid invalid error
+	ErrInvalid = errors.New("invalid")
+	// ErrDuplicate duplicate error
+	ErrDuplicate = errors.New("duplicate")
 )
 
+// Errored writes errors to the HTTP response writer
 func Errored(w http.ResponseWriter, err error) bool {
 	if err == nil {
 		return false

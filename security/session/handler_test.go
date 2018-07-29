@@ -24,8 +24,8 @@ func init() {
 }
 
 func TestPasswordHttp(t *testing.T) {
-	userJson := `{"username": "dennis", "balance": 200}`
-	reader := strings.NewReader(userJson)
+	userJSON := `{"username": "dennis", "balance": 200}`
+	reader := strings.NewReader(userJSON)
 	request, err := http.NewRequest("POST", url, reader) //Create request with JSON body
 	if err != nil {
 		t.Error(err) //Something is wrong while sending request
@@ -45,7 +45,7 @@ func TestPasswordHttp(t *testing.T) {
 func TestPasswordPost(t *testing.T) {
 	const accountName = "test-account"
 	const accountPassword = "secretpassword"
-	w := testHttpWriter{
+	w := testHTTPWriter{
 		h: http.Header{},
 	}
 	w.h.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -95,13 +95,13 @@ func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // net/http/ResponseWriter
-type testHttpWriter struct {
+type testHTTPWriter struct {
 	h http.Header
 }
 
-func (w testHttpWriter) Header() http.Header               { return w.h }
-func (w testHttpWriter) WriteHeader(int)                   {} // no headers
-func (w testHttpWriter) Write(p []byte) (n int, err error) { return 0, nil }
+func (w testHTTPWriter) Header() http.Header               { return w.h }
+func (w testHTTPWriter) WriteHeader(int)                   {} // no headers
+func (w testHTTPWriter) Write(p []byte) (n int, err error) { return 0, nil }
 
 type testAccountRoleReader struct{}
 

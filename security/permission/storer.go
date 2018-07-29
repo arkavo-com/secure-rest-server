@@ -2,10 +2,10 @@ package permission
 
 import (
 	"database/sql"
-	"errors"
 	"log"
 
 	"secure-rest-server/security"
+	"secure-rest-server/security/rest"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
@@ -30,39 +30,34 @@ const (
 
 var (
 	s store
-	// error
-	ErrNotFound  = errors.New("not found")
-	ErrDuplicate = errors.New("duplicate")
 )
 
 // StoreMongo initializes store, call once
-func StoreMongo(session *mgo.Session) *store {
+func StoreMongo(session *mgo.Session) {
 	if s.provider != 0 {
-		return nil
+		return
 	}
 	s = store{
 		provider: mongodbStore,
 		mongo:    session,
 	}
-	return &s
 }
 
 // StorePostgres initializes store, call once
-func StorePostgres(db *sql.DB) *store {
+func StorePostgres(db *sql.DB) {
 	if s.provider != 0 {
-		return nil
+		return
 	}
 	s = store{
 		provider: postgresStore,
 		postgres: db,
 	}
-	return &s
 }
 
 // StoreRedis initializes store, call once
-func StoreRedis(c redis.Conn) *store {
+func StoreRedis(c redis.Conn) {
 	if s.provider != 0 {
-		return nil
+		return
 	}
 	s = store{
 		provider: redisStore,
@@ -72,11 +67,10 @@ func StoreRedis(c redis.Conn) *store {
 			},
 		},
 	}
-	return &s
 }
 
 // StoreMem development use only.  Default user admin:nimda
-func StoreMem() *store {
+func StoreMem() {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			collection: {
@@ -98,7 +92,6 @@ func StoreMem() *store {
 		provider: memdbStore,
 		mem:      db,
 	}
-	return &s
 }
 
 type store struct {
@@ -131,7 +124,7 @@ func (s *store) createPermission(p *security.Permission) error {
 		if err != nil {
 			if err, ok := err.(*pq.Error); ok {
 				if err.Code == "23505" {
-					return ErrDuplicate
+					return rest.ErrDuplicate
 				}
 			}
 			return err
@@ -152,7 +145,7 @@ func (s *store) createPermission(p *security.Permission) error {
 		}
 		if raw != nil {
 			txn.Abort()
-			return ErrDuplicate
+			return rest.ErrDuplicate
 		}
 		err = txn.Insert(collection, p)
 		if err != nil {
@@ -182,7 +175,7 @@ func (s *store) readPermissions() ([]*security.Permission, error) {
 		defer rows.Close()
 		for rows.Next() {
 			var p security.Permission
-			err := rows.Scan(&p.Class, pq.Array(&p.Actions))
+			err = rows.Scan(&p.Class, pq.Array(&p.Actions))
 			if err != nil {
 				return nil, err
 			}
@@ -197,7 +190,6 @@ func (s *store) readPermissions() ([]*security.Permission, error) {
 		if err != nil {
 			return nil, err
 		}
-		var permissions []*security.Permission
 		for raw := result.Next(); raw != nil; raw = result.Next() {
 			permissions = append(permissions, raw.(*security.Permission))
 		}
@@ -220,7 +212,7 @@ func (s *store) readPermission(c string) (*security.Permission, error) {
 		err := s.postgres.QueryRow(sqlstr, c).Scan(&p.Class, pq.Array(&p.Actions))
 		if err != nil {
 			if sql.ErrNoRows == err {
-				return &p, ErrNotFound
+				return &p, rest.ErrNotFound
 			}
 			return &p, err
 		}
@@ -233,10 +225,9 @@ func (s *store) readPermission(c string) (*security.Permission, error) {
 			return nil, err
 		}
 		if raw == nil {
-			return nil, ErrNotFound
+			return nil, rest.ErrNotFound
 		}
 		return raw.(*security.Permission), err
-		return &p, err
 	}
-	return &p, ErrNotFound
+	return &p, rest.ErrNotFound
 }

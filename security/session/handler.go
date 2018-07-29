@@ -32,9 +32,6 @@ var (
 		OperationProps: spec.OperationProps{
 			ID:       "sessionRead",
 			Produces: []string{"application/json"},
-			Parameters: []spec.Parameter{
-				parameterAccountName,
-			},
 		},
 	}
 	operationTerminate = &spec.Operation{
@@ -111,6 +108,7 @@ func HandlerFunc(f http.HandlerFunc) http.HandlerFunc {
 		f(w, r)
 	}
 }
+
 // HandlePath registers http.HandleFunc and spec.Operation for paths
 func HandlePath(paths spec.Paths, ar security.AccountReader, rr security.RoleReader) {
 	accountReader = ar
@@ -196,6 +194,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 		}
 		var permissions []*security.Permission
 		for _, role := range ac.Roles {
+			// TODO review database calls in loop
 			ro, err := roleReader.ReadRole(role)
 			if rest.Errored(w, err) {
 				return

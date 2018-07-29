@@ -72,6 +72,7 @@ var (
 		security.PolicyPermission,
 	}
 )
+
 // HandlePath registers http.HandleFunc and spec.Operation for paths
 func HandlePath(paths spec.Paths) {
 	p := "/permission"
@@ -103,7 +104,8 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		for i := 0; i < len(standard); i++ {
 			pbs = append(pbs, &standard[i])
 		}
-		permissions, err := s.readPermissions()
+		var permissions []*security.Permission
+		permissions, err = s.readPermissions()
 		if rest.Errored(w, err) {
 			return
 		}
@@ -122,7 +124,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = s.createPermission(&permission)
-		if err == ErrDuplicate {
+		if err == rest.ErrDuplicate {
 			err = rest.ValidationErrors{
 				rest.ValidationError{
 					Property: "class",

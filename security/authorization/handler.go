@@ -7,6 +7,7 @@ import (
 	"secure-rest-server/security/rest"
 )
 
+// Authorize checks context for allowed actions
 func Authorize(ctx context.Context, c, a string) error {
 	v := ctx.Value("session.context")
 	ss, ok := v.(*security.Session)

@@ -17,6 +17,7 @@ import (
 	"secure-rest-server/security"
 )
 
+// HeaderHandler adds HTTP headers
 type HeaderHandler struct {
 	ServeMux *http.ServeMux
 	Origin   string
@@ -54,7 +55,7 @@ func PathHandlerFunc(path string, f http.HandlerFunc) http.HandlerFunc {
 	pattern := strings.Split(path, "{")
 	pf := func(w http.ResponseWriter, r *http.Request) {
 		if len(pattern) > 1 {
-			r.Form = make(url.Values, 0)
+			r.Form = make(url.Values)
 			r.Form.Set(pattern[1][0:len(pattern[1])-1], r.RequestURI[len(pattern[0]):])
 		}
 		f(w, r)

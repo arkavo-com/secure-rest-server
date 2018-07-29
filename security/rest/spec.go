@@ -12,10 +12,11 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+// HandlerFunc writes the spec as json
 func HandlerFunc(paths spec.Paths) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		definitions := make(map[string]spec.Schema, 0)
-		securityDefinitions := make(map[string]*spec.SecurityScheme, 0)
+		definitions := make(map[string]spec.Schema)
+		securityDefinitions := make(map[string]*spec.SecurityScheme)
 		securityDefinitions["cookieAuth"] = &spec.SecurityScheme{
 			SecuritySchemeProps: spec.SecuritySchemeProps{
 				Type: "apiKey",
@@ -30,7 +31,7 @@ func HandlerFunc(paths spec.Paths) http.HandlerFunc {
 				Paths:   &paths,
 				Info: &spec.Info{
 					InfoProps: spec.InfoProps{
-						Title: "pbac",
+						Title: "arkavo",
 					},
 				},
 				Definitions: definitions,
@@ -49,11 +50,13 @@ func HandlerFunc(paths spec.Paths) http.HandlerFunc {
 	}
 }
 
+// ValidationError with JSON tags
 type ValidationError struct {
 	Property string `json:"property,omitempty"`
 	Rule     string `json:"rule,omitempty"`
 }
 
+// ValidationErrors returned to the user
 type ValidationErrors []ValidationError
 
 func (e ValidationErrors) Error() string {
@@ -78,6 +81,7 @@ func ValidateParameterQueryAction(r http.Request, ps ...spec.Parameter) string {
 	return v
 }
 
+// ValidateParameter path and query parameters
 func ValidateParameter(r http.Request, p spec.Parameter) (string, error) {
 	var errs ValidationErrors
 	valid := true
@@ -124,6 +128,7 @@ func ValidateParameter(r http.Request, p spec.Parameter) (string, error) {
 	return v, nil
 }
 
+// Validate body parameter
 func Validate(r *http.Request, o *spec.Operation, pb proto.Message) error {
 	var errs ValidationErrors
 	for _, p := range o.Parameters {
@@ -151,7 +156,7 @@ func Validate(r *http.Request, o *spec.Operation, pb proto.Message) error {
 			marshaller := jsonpb.Marshaler{}
 			j, _ := marshaller.MarshalToString(pb)
 			var jf map[string]*json.RawMessage
-			err = json.Unmarshal([]byte(j), &jf)
+			json.Unmarshal([]byte(j), &jf)
 			// required
 			for _, require := range p.Schema.Required {
 				if jf[require] == nil {
@@ -170,6 +175,7 @@ func Validate(r *http.Request, o *spec.Operation, pb proto.Message) error {
 	return nil
 }
 
+// BodyParameter body parameter with Required true
 func BodyParameter(s spec.Schema) spec.Parameter {
 	return spec.Parameter{
 		ParamProps: spec.ParamProps{
