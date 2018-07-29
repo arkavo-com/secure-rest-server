@@ -63,22 +63,22 @@ func main() {
 	}
 	switch sURL.Scheme {
 	case "mongodb":
-		info, err := dialMgo(*configuration.Permission.Store)
+		s, err := dialMongo(*configuration.Permission.Store)
 		if err == nil {
-			permission.RegisterStoreProviderMgo(&info)
+			permission.StoreMongo(s)
 		}
 	case "postgres":
 		db, err := dialPostgres(*configuration.Permission.Store)
 		if err == nil {
-			permission.RegisterStoreProviderPostgres(db)
+			permission.StorePostgres(db)
 		}
 	case "redis":
 		c, err := dialRedis(*configuration.Permission.Store)
 		if err == nil {
-			permission.RegisterStoreProviderRedis(c)
+			permission.StoreRedis(c)
 		}
 	default:
-		permission.RegisterStoreProviderMemdb()
+		permission.StoreMem()
 	}
 	// role
 	var roleReader security.RoleReader
@@ -88,22 +88,22 @@ func main() {
 	}
 	switch sURL.Scheme {
 	case "mongodb":
-		info, _ := dialMgo(*configuration.Role.Store)
+		s, err := dialMongo(*configuration.Role.Store)
 		if err == nil {
-			roleReader = role.RegisterStoreProviderMgo(&info)
+			roleReader = role.StoreMongo(s)
 		}
 	case "postgres":
 		db, err := dialPostgres(*configuration.Role.Store)
 		if err == nil {
-			roleReader = role.RegisterStoreProviderPostgres(db)
+			roleReader = role.StorePostgres(db)
 		}
 	case "redis":
 		c, _ := dialRedis(*configuration.Role.Store)
 		if err == nil {
-			roleReader = role.RegisterStoreProviderRedis(c)
+			roleReader = role.StoreRedis(c)
 		}
 	default:
-		roleReader = role.RegisterStoreProviderMemdb()
+		roleReader = role.StoreMem()
 	}
 	if roleReader == nil {
 		log.Fatal("roleReader uninitialized")
@@ -115,31 +115,31 @@ func main() {
 	}
 	switch sURL.Scheme {
 	case "mongodb":
-		info, _ := dialMgo(*configuration.Session.Store)
+		s, err := dialMongo(*configuration.Session.Store)
 		if err == nil {
-			session.RegisterStoreProviderMgo(&info)
+			session.StoreMongo(s)
 		}
 	case "postgres":
 		db, err := dialPostgres(*configuration.Session.Store)
 		if err == nil {
-			session.RegisterStoreProviderPostgres(db)
+			session.StorePostgres(db)
 		}
 	case "redis":
 		c, _ := dialRedis(*configuration.Session.Store)
 		if err == nil {
-			session.RegisterStoreProviderRedis(c)
+			session.StoreRedis(c)
 		}
 	default:
-		session.RegisterStoreProviderMemdb()
+		session.StoreMem()
 	}
 	// openapi paths
 	pa := spec.Paths{Paths: map[string]spec.PathItem{}}
 	// session
-	session.RegisterHttpHandler(pa, accountReader, roleReader)
+	session.HandlePath(pa, accountReader, roleReader)
 	// role
-	role.RegisterHttpHandler(pa)
+	role.HandlePath(pa)
 	// permission
-	permission.RegisterHttpHandler(pa)
+	permission.HandlePath(pa)
 	// account
 	account.HandlePath(pa, accountReader)
 	// openapi handler
@@ -214,23 +214,6 @@ func dialMongo(c security.Configuration_Store) (*mgo.Session, error) {
 	}
 	info.FailFast = temp
 	return s, err
-}
-
-func dialMgo(c security.Configuration_Store) (mgo.DialInfo, error) {
-	info, err := mgo.ParseURL(c.Url)
-	if err != nil {
-		log.Println("mongodb url error", err)
-		return *info, err
-	}
-	// connection test fast
-	temp := info.FailFast
-	info.FailFast = true
-	_, err = mgo.DialWithInfo(info)
-	if err != nil {
-		log.Println("mongodb dial error", err)
-	}
-	info.FailFast = temp
-	return *info, err
 }
 
 func dialRedis(c security.Configuration_Store) (redis.Conn, error) {

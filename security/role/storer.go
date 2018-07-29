@@ -18,7 +18,7 @@ import (
 type storeProvider int
 
 const (
-	mongodbStore  storeProvider = iota + 1
+	mongodbStore storeProvider = iota + 1
 	postgresStore
 	redisStore
 	memdbStore
@@ -29,9 +29,11 @@ const (
 )
 
 var (
-	ErrNotFound       = errors.New("not found")
-	ErrDuplicate      = errors.New("duplicate")
-	s                 store
+	s store
+	// error
+	ErrNotFound  = errors.New("not found")
+	ErrDuplicate = errors.New("duplicate")
+	// standard
 	administratorRole = security.Role{
 		Name: "Administrator",
 		Permissions: []*security.Permission{
@@ -45,39 +47,54 @@ var (
 	}
 )
 
-func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
+// StoreMongo initializes store, call once
+func StoreMongo(session *mgo.Session) *store {
+	if s.provider != 0 {
+		return nil
+	}
 	s = store{
 		provider: mongodbStore,
-		database: info.Database,
+		mongo:    session,
 	}
-	s.mSession, _ = mgo.DialWithInfo(info)
 	s.createRole(&administratorRole)
 	return &s
 }
 
-func RegisterStoreProviderPostgres(db *sql.DB) *store {
+// StorePostgres initializes store, call once
+func StorePostgres(db *sql.DB) *store {
+	if s.provider != 0 {
+		return nil
+	}
 	s = store{
-		provider:   postgresStore,
-		postgresDB: db,
+		provider: postgresStore,
+		postgres: db,
 	}
 	s.createRole(&administratorRole)
 	return &s
 }
 
-func RegisterStoreProviderRedis(c redis.Conn) *store {
+// StoreRedis initializes store, call once
+func StoreRedis(c redis.Conn) *store {
+	if s.provider != 0 {
+		return nil
+	}
 	s = store{
 		provider: redisStore,
-		redisPool: &redis.Pool{
+		redis: &redis.Pool{
 			Dial: func() (redis.Conn, error) {
 				return c, nil
 			},
 		},
 	}
+	s.createRole(&administratorRole)
 	return &s
 }
 
-// RegisterStoreProviderMemdb development use only.  Default user admin:nimda
-func RegisterStoreProviderMemdb() *store {
+// StoreMem development use only.
+func StoreMem() *store {
+	if s.provider != 0 {
+		return nil
+	}
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			collection: {
@@ -97,7 +114,6 @@ func RegisterStoreProviderMemdb() *store {
 	}
 	s = store{
 		provider: memdbStore,
-		database: collection,
 		mem:      db,
 	}
 	s.createRole(&administratorRole)
@@ -105,20 +121,19 @@ func RegisterStoreProviderMemdb() *store {
 }
 
 type store struct {
-	provider   storeProvider
-	database   string
-	mSession   *mgo.Session
-	redisPool  *redis.Pool
-	mem        *memdb.MemDB
-	postgresDB *sql.DB
+	provider storeProvider
+	mongo    *mgo.Session
+	redis    *redis.Pool
+	mem      *memdb.MemDB
+	postgres *sql.DB
 }
 
 func (s *store) c() *mgo.Collection {
-	return s.mSession.Clone().DB(s.database).C(collection)
+	return s.mongo.Clone().DB("").C(collection)
 }
 
 func (s *store) get() redis.Conn {
-	return s.redisPool.Get()
+	return s.redis.Get()
 }
 
 func (s *store) createRole(r *security.Role) error {
@@ -126,7 +141,7 @@ func (s *store) createRole(r *security.Role) error {
 	case mongodbStore:
 		return s.c().Insert(r)
 	case postgresStore:
-		txn, err := s.postgresDB.Begin()
+		txn, err := s.postgres.Begin()
 		if err != nil {
 			return err
 		}
@@ -198,7 +213,7 @@ func (s *store) readRoles() ([]*security.Role, error) {
 		const sqlstr = `SELECT ` +
 			`role_name, role_state ` +
 			`FROM ` + collection
-		rows, err := s.postgresDB.Query(sqlstr)
+		rows, err := s.postgres.Query(sqlstr)
 		if err != nil {
 			return roles, err
 		}
@@ -215,7 +230,7 @@ func (s *store) readRoles() ([]*security.Role, error) {
 		const sqlstrSec = `SELECT ` +
 			`role_name, permission_class, permission_actions ` +
 			`FROM ` + collection + `_permission `
-		rowsSec, err := s.postgresDB.Query(sqlstrSec)
+		rowsSec, err := s.postgres.Query(sqlstrSec)
 		if err != nil {
 			return roles, err
 		}
@@ -258,7 +273,7 @@ func (s *store) ReadRole(name string) (*security.Role, error) {
 			`role_name, role_state ` +
 			`FROM ` + collection + ` ` +
 			`WHERE role_name = $1`
-		err := s.postgresDB.QueryRow(sqlstr, name).Scan(&r.Name, &r.State)
+		err := s.postgres.QueryRow(sqlstr, name).Scan(&r.Name, &r.State)
 		if err != nil {
 			return &r, err
 		}
@@ -266,7 +281,7 @@ func (s *store) ReadRole(name string) (*security.Role, error) {
 			`permission_class, permission_actions ` +
 			`FROM ` + collection + `_permission ` +
 			`WHERE role_name = $1`
-		rows, err := s.postgresDB.Query(sqlstrSec, name)
+		rows, err := s.postgres.Query(sqlstrSec, name)
 		if err != nil {
 			return nil, err
 		}
@@ -298,6 +313,9 @@ func (s *store) ReadRole(name string) (*security.Role, error) {
 		if err != nil {
 			return nil, err
 		}
+		if raw == nil {
+			return nil, ErrNotFound
+		}
 		return raw.(*security.Role), err
 	}
 	return &r, nil
@@ -308,7 +326,7 @@ func (s *store) updateRole(r *security.Role) error {
 	case mongodbStore:
 		return s.c().Update(bson.M{"name": r.Name}, r)
 	case postgresStore:
-		txn, err := s.postgresDB.Begin()
+		txn, err := s.postgres.Begin()
 		if err != nil {
 			return err
 		}
@@ -318,7 +336,7 @@ func (s *store) updateRole(r *security.Role) error {
 			`) = ROW( ` +
 			`$1` +
 			`) WHERE role_name = $2`
-		_, err = s.postgresDB.Exec(sqlstr, r.State, r.Name)
+		_, err = s.postgres.Exec(sqlstr, r.State, r.Name)
 		if err != nil {
 			txn.Rollback()
 			return err
@@ -375,7 +393,7 @@ func (s *store) deleteRole(name string) error {
 	case mongodbStore:
 		return s.c().Remove(bson.M{"name": name})
 	case postgresStore:
-		txn, err := s.postgresDB.Begin()
+		txn, err := s.postgres.Begin()
 		if err != nil {
 			return err
 		}

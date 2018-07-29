@@ -37,7 +37,6 @@ var (
 	operationRead = &spec.Operation{
 		OperationProps: spec.OperationProps{
 			ID:       "accountRead",
-			Consumes: []string{"application/json"},
 			Produces: []string{"application/json"},
 			Parameters: []spec.Parameter{
 				parameterName,
@@ -48,6 +47,43 @@ var (
 		OperationProps: spec.OperationProps{
 			ID:       "accountReadAll",
 			Produces: []string{"application/json"},
+		},
+	}
+	operationUpdate = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "accountUpdate",
+			Consumes: []string{"application/json"},
+			Produces: []string{"application/json"},
+			Parameters: []spec.Parameter{
+				parameterName,
+				parameterActivate,
+				parameterDeactivate,
+				parameterLock,
+				parameterInitialize,
+				{
+					ParamProps: spec.ParamProps{
+						Name: "body",
+						In:   "body",
+						Schema: &spec.Schema{
+							SchemaProps: spec.SchemaProps{
+								Required: []string{"name", "roles"},
+								Properties: map[string]spec.Schema{
+									"name": {
+										SwaggerSchemaProps: spec.SwaggerSchemaProps{
+											ReadOnly: true,
+										},
+									},
+									"state": {
+										SwaggerSchemaProps: spec.SwaggerSchemaProps{
+											ReadOnly: true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 	operationUpdatePassword = &spec.Operation{
@@ -77,9 +113,9 @@ var (
 			Required: true,
 			Schema: &spec.Schema{
 				SchemaProps: spec.SchemaProps{
-					MinLength: &[]int64{int64(policy.Password.LengthMinimum)}[0],
-					MaxLength: &[]int64{int64(policy.Password.LengthMaximum)}[0],
-					Pattern:   policy.Password.Pattern,
+					MinLength: &[]int64{int64(policy.Account.LengthMinimum)}[0],
+					MaxLength: &[]int64{int64(policy.Account.LengthMaximum)}[0],
+					Pattern:   policy.Account.Pattern,
 				},
 			},
 		},
@@ -98,6 +134,38 @@ var (
 			},
 		},
 	}
+	parameterActivate = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:            security.Account_ACTIVATE.String(),
+			In:              "query",
+			AllowEmptyValue: true,
+			Required:        false,
+		},
+	}
+	parameterDeactivate = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:            security.Account_DEACTIVATE.String(),
+			In:              "query",
+			AllowEmptyValue: true,
+			Required:        false,
+		},
+	}
+	parameterLock = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:            security.Account_LOCK.String(),
+			In:              "query",
+			AllowEmptyValue: true,
+			Required:        false,
+		},
+	}
+	parameterInitialize = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:            security.Account_INITIALIZE.String(),
+			In:              "query",
+			AllowEmptyValue: true,
+			Required:        false,
+		},
+	}
 )
 // HandlePath registers http.HandleFunc and spec.Operation for paths
 func HandlePath(paths spec.Paths, ar security.AccountReader) {
@@ -114,6 +182,7 @@ func HandlePath(paths spec.Paths, ar security.AccountReader) {
 	paths.Paths[p] = spec.PathItem{
 		PathItemProps: spec.PathItemProps{
 			Get:    operationRead,
+			Put:    operationUpdate,
 			Delete: operationDelete,
 		},
 	}
@@ -137,9 +206,9 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		pbs := make([]proto.Message, len(accounts), len(accounts))
+		var pbs []proto.Message
 		for i := 0; i < len(accounts); i++ {
-			pbs[i] = accounts[i]
+			pbs = append(pbs, accounts[i])
 		}
 		rest.WriteProtos(w, pbs)
 	case "POST":
@@ -170,7 +239,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		rest.WriteProto(w, &a)
+		rest.WriteProtoCreated(w, &a, r.RequestURI+"/"+a.Name)
 	}
 }
 
@@ -191,11 +260,10 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 		}
 		rest.WriteProto(w, a)
 	case "PUT":
-		err := authorize(r.Context(), security.Account_UPDATE_PASSWORD)
+		err := authorize(r.Context(), security.Account_UPDATE)
 		if rest.Errored(w, err) {
 			return
 		}
-		// account
 		n, err := rest.ValidateParameter(*r, parameterName)
 		if rest.Errored(w, err) {
 			return
@@ -204,23 +272,34 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		na := security.Account{}
-		err = rest.Validate(r, operationCreate, &na)
-		if rest.Errored(w, err) {
-			return
+		// action
+		action := rest.ValidateParameterQueryAction(*r, parameterActivate, parameterDeactivate, parameterInitialize, parameterLock)
+		if action != "" {
+			ns := transition(a.State, security.Account_Action(security.Account_Action_value[action]))
+			// if previous state then 304
+			if a.State == ns {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			a.State = ns
+		} else {
+			new := security.Account{}
+			err = rest.Validate(r, operationUpdate, &new)
+			if rest.Errored(w, err) {
+				return
+			}
+			a.Roles = new.Roles
 		}
-		// TODO merge, consider readonly and hidden
 		err = s.updateAccount(a)
 		if rest.Errored(w, err) {
 			return
 		}
 		rest.WriteProto(w, a)
 	case "DELETE":
-		err := authorize(r.Context(), security.Account_DEACTIVATE)
+		err := authorize(r.Context(), security.Account_DELETE)
 		if rest.Errored(w, err) {
 			return
 		}
-		// account
 		n, err := rest.ValidateParameter(*r, parameterName)
 		if rest.Errored(w, err) {
 			return
@@ -229,8 +308,11 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		// state
-		a.State = transition(a.State, security.Account_DEACTIVATE)
+		// only delete Deactivated
+		if a.State != security.Account_Deactivated {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
 		err = s.updateAccount(a)
 		if rest.Errored(w, err) {
 			return

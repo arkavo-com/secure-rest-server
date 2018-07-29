@@ -37,7 +37,7 @@ func TestPasswordHttp(t *testing.T) {
 	if len(res.Cookies()) != 1 {
 		t.Errorf("Expected one cookie: %v", len(res.Cookies()))
 	}
-	if res.StatusCode != 200 {
+	if res.StatusCode != 201 {
 		t.Errorf("Success expected: %d", res.StatusCode) //Uh-oh this means our test failed
 	}
 }
@@ -91,7 +91,7 @@ type testHandler struct {
 }
 
 func (h *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	serveHTTP(w, r)
+	serveHTTPparameter(w, r)
 }
 
 // net/http/ResponseWriter

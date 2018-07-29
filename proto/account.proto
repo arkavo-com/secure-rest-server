@@ -28,10 +28,11 @@ message Account {
         CREATE = 0;
         READ = 1;
         UPDATE = 2;
-        UPDATE_PASSWORD = 3;
-        ACTIVATE = 4;
-        DEACTIVATE = 5;
-        LOCK = 6;
-        INITIALIZE = 7;
+        DELETE = 3;
+        UPDATE_PASSWORD = 4;
+        ACTIVATE = 5;
+        DEACTIVATE = 6;
+        LOCK = 7;
+        INITIALIZE = 8;
     }
 }

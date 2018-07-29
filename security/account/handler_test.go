@@ -113,7 +113,7 @@ func Test_serveHTTPCreate(t *testing.T) {
 		{"create account valid", args{
 			httptest.NewRecorder(),
 			rv,
-		}, 200},
+		}, 201},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -158,7 +158,7 @@ func Test_serveHTTPCreateDuplicate(t *testing.T) {
 		{"create account valid", args{
 			httptest.NewRecorder(),
 			rv,
-		}, 200, "{\"name\":\"test\",\"state\":\"Initialized\",\"roles\":[\"Administrator\"]}"},
+		}, 201, "{\"name\":\"test\",\"state\":\"Initialized\",\"roles\":[\"Administrator\"]}"},
 		{"create account duplicate", args{
 			httptest.NewRecorder(),
 			rd,

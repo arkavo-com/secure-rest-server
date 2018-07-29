@@ -3,6 +3,7 @@ package rest
 import (
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -10,6 +11,70 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/assert"
 )
+
+var (
+	parameterTest = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:            "TEST",
+			In:              "query",
+			AllowEmptyValue: true,
+			Required:        false,
+		},
+	}
+	parameterCancel = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:            "CANCEL",
+			In:              "query",
+			AllowEmptyValue: true,
+			Required:        false,
+		},
+	}
+)
+
+func TestValidateParameterQueryAction(t *testing.T) {
+	r := httptest.NewRequest("GET", "/account?TEST", nil)
+	rn := httptest.NewRequest("GET", "/account", nil)
+	ro := httptest.NewRequest("GET", "/account?BOGUS", nil)
+	r2 := httptest.NewRequest("GET", "/account?TEST&CANCEL", nil)
+	ri := httptest.NewRequest("GET", "/account?TEST=test", nil)
+	type args struct {
+		r  http.Request
+		ps []spec.Parameter
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{"valid", args{
+			*r,
+			[]spec.Parameter{parameterTest},
+		}, "TEST"},
+		{"none", args{
+			*rn,
+			[]spec.Parameter{parameterTest},
+		}, ""},
+		{"other", args{
+			*ro,
+			[]spec.Parameter{parameterTest},
+		}, ""},
+		{"valid many", args{
+			*r2,
+			[]spec.Parameter{parameterTest, parameterCancel},
+		}, "TEST"},
+		{"valid value", args{
+			*ri,
+			[]spec.Parameter{parameterTest},
+		}, "TEST"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ValidateParameterQueryAction(tt.args.r, tt.args.ps...); got != tt.want {
+				t.Errorf("ValidateParameterQueryAction() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
 // github.com/go-openapi/runtime/middleware/string_conversion_test.go
 func TestValidate(t *testing.T) {

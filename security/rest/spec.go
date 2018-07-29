@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-openapi/spec"
 	"github.com/golang/protobuf/jsonpb"
@@ -63,10 +64,35 @@ func (e ValidationErrors) Error() string {
 	return m
 }
 
+// ValidateParameterQueryAction query parameter for actions, no value, not required
+func ValidateParameterQueryAction(r http.Request, ps ...spec.Parameter) string {
+	var v string
+	q := map[string][]string(r.URL.Query())
+	for _, p := range ps {
+		// query parameters with no value
+		if p.In == "query" && p.AllowEmptyValue && !p.Required && q[p.ParamProps.Name] != nil {
+			v = p.ParamProps.Name
+			break
+		}
+	}
+	return v
+}
+
 func ValidateParameter(r http.Request, p spec.Parameter) (string, error) {
 	var errs ValidationErrors
 	valid := true
 	v := r.Form.Get(p.ParamProps.Name)
+	// path with query
+	if p.In == "path" && strings.Contains(v, "?") {
+		v = strings.Split(v, "?")[0]
+	}
+	// query
+	if p.In == "query" {
+		q := map[string][]string(r.URL.Query())
+		if q[p.ParamProps.Name] != nil {
+			v = p.ParamProps.Name
+		}
+	}
 	if v == "" && p.ParamProps.Required {
 		errs = append(errs, ValidationError{
 			Property: p.ParamProps.Name,
@@ -78,14 +104,14 @@ func ValidateParameter(r http.Request, p spec.Parameter) (string, error) {
 		return v, nil
 	}
 	optional := v == ""
-	if int64(len(v)) < *p.ParamProps.Schema.MinLength {
+	if p.ParamProps.Schema.MinLength != nil && int64(len(v)) < *p.ParamProps.Schema.MinLength {
 		errs = append(errs, ValidationError{
 			Property: p.ParamProps.Name,
 			Rule:     "MinLength",
 		})
 		valid = optional
 	}
-	if int64(len(v)) > *p.ParamProps.Schema.MaxLength {
+	if p.ParamProps.Schema.MaxLength != nil && int64(len(v)) > *p.ParamProps.Schema.MaxLength {
 		errs = append(errs, ValidationError{
 			Property: p.ParamProps.Name,
 			Rule:     "MaxLength",
@@ -136,20 +162,6 @@ func Validate(r *http.Request, o *spec.Operation, pb proto.Message) error {
 					})
 				}
 			}
-			for k, sp := range p.Schema.Properties {
-				// type check https://swagger.io/docs/specification/data-models/data-types/
-				fmt.Println(k)
-				if jf[k] == nil {
-					continue
-				}
-				//fmt.Println(string([]byte(*jf[k])))
-				b, _ := jf[k].MarshalJSON()
-				fmt.Println(string(b))
-				fmt.Println(sp)
-			}
-		case "path":
-		case "query":
-		case "formData":
 		}
 		if !valid {
 			return errs

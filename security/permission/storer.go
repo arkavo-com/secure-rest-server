@@ -8,6 +8,7 @@ import (
 	"secure-rest-server/security"
 
 	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
@@ -17,7 +18,7 @@ import (
 type storeProvider int
 
 const (
-	mongodbStore  storeProvider = iota + 1
+	mongodbStore storeProvider = iota + 1
 	postgresStore
 	redisStore
 	memdbStore
@@ -28,32 +29,44 @@ const (
 )
 
 var (
+	s store
+	// error
+	ErrNotFound  = errors.New("not found")
 	ErrDuplicate = errors.New("duplicate")
-	s            store
 )
 
-func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
+// StoreMongo initializes store, call once
+func StoreMongo(session *mgo.Session) *store {
+	if s.provider != 0 {
+		return nil
+	}
 	s = store{
 		provider: mongodbStore,
-		database: info.Database,
+		mongo:    session,
 	}
-	s.mSession, _ = mgo.DialWithInfo(info)
 	return &s
 }
 
-func RegisterStoreProviderPostgres(db *sql.DB) *store {
+// StorePostgres initializes store, call once
+func StorePostgres(db *sql.DB) *store {
+	if s.provider != 0 {
+		return nil
+	}
 	s = store{
-		provider:   postgresStore,
-		postgresDB: db,
+		provider: postgresStore,
+		postgres: db,
 	}
 	return &s
 }
 
-// RegisterStoreProviderRedis
-func RegisterStoreProviderRedis(c redis.Conn) *store {
+// StoreRedis initializes store, call once
+func StoreRedis(c redis.Conn) *store {
+	if s.provider != 0 {
+		return nil
+	}
 	s = store{
 		provider: redisStore,
-		redisPool: &redis.Pool{
+		redis: &redis.Pool{
 			Dial: func() (redis.Conn, error) {
 				return c, nil
 			},
@@ -62,8 +75,8 @@ func RegisterStoreProviderRedis(c redis.Conn) *store {
 	return &s
 }
 
-// RegisterStoreProviderMemdb
-func RegisterStoreProviderMemdb() *store {
+// StoreMem development use only.  Default user admin:nimda
+func StoreMem() *store {
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			collection: {
@@ -83,27 +96,25 @@ func RegisterStoreProviderMemdb() *store {
 	}
 	s = store{
 		provider: memdbStore,
-		database: collection,
 		mem:      db,
 	}
 	return &s
 }
 
 type store struct {
-	provider   storeProvider
-	database   string
-	mSession   *mgo.Session
-	redisPool  *redis.Pool
-	mem        *memdb.MemDB
-	postgresDB *sql.DB
+	provider storeProvider
+	mongo    *mgo.Session
+	redis    *redis.Pool
+	mem      *memdb.MemDB
+	postgres *sql.DB
 }
 
 func (s *store) c() *mgo.Collection {
-	return s.mSession.Clone().DB(s.database).C(collection)
+	return s.mongo.Clone().DB("").C(collection)
 }
 
 func (s *store) get() redis.Conn {
-	return s.redisPool.Get()
+	return s.redis.Get()
 }
 
 func (s *store) createPermission(p *security.Permission) error {
@@ -116,7 +127,7 @@ func (s *store) createPermission(p *security.Permission) error {
 			`) VALUES (` +
 			`$1, $2` +
 			`)`
-		_, err := s.postgresDB.Exec(sqlstr, p.Class, pq.Array(p.Actions))
+		_, err := s.postgres.Exec(sqlstr, p.Class, pq.Array(p.Actions))
 		if err != nil {
 			if err, ok := err.(*pq.Error); ok {
 				if err.Code == "23505" {
@@ -164,7 +175,7 @@ func (s *store) readPermissions() ([]*security.Permission, error) {
 		const sqlstr = `SELECT ` +
 			`permission_class, permission_actions ` +
 			`FROM ` + collection
-		rows, err := s.postgresDB.Query(sqlstr)
+		rows, err := s.postgres.Query(sqlstr)
 		if err != nil {
 			return nil, err
 		}
@@ -193,4 +204,39 @@ func (s *store) readPermissions() ([]*security.Permission, error) {
 		return permissions, err
 	}
 	return permissions, nil
+}
+
+func (s *store) readPermission(c string) (*security.Permission, error) {
+	var p security.Permission
+	switch s.provider {
+	case mongodbStore:
+		err := s.c().Find(bson.M{"class": c}).One(&p)
+		return &p, err
+	case postgresStore:
+		const sqlstr = `SELECT ` +
+			`permission_class, permission_actions ` +
+			`FROM ` + collection + ` ` +
+			`WHERE permission_class = $1`
+		err := s.postgres.QueryRow(sqlstr, c).Scan(&p.Class, pq.Array(&p.Actions))
+		if err != nil {
+			if sql.ErrNoRows == err {
+				return &p, ErrNotFound
+			}
+			return &p, err
+		}
+		return &p, err
+	case memdbStore:
+		txn := s.mem.Txn(false)
+		defer txn.Abort()
+		raw, err := txn.First(collection, "id", c)
+		if err != nil {
+			return nil, err
+		}
+		if raw == nil {
+			return nil, ErrNotFound
+		}
+		return raw.(*security.Permission), err
+		return &p, err
+	}
+	return &p, ErrNotFound
 }

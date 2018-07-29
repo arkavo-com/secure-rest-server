@@ -36,3 +36,15 @@ func WriteProto(w http.ResponseWriter, pb proto.Message) {
 		w.Write([]byte(err.Error()))
 	}
 }
+
+// WriteProtoCreated sets 201 and Location header
+func WriteProtoCreated(w http.ResponseWriter, pb proto.Message, location string) {
+	w.Header().Add("location", location)
+	w.WriteHeader(http.StatusCreated)
+	marshaller := jsonpb.Marshaler{}
+	err := marshaller.Marshal(w, pb)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+	}
+}

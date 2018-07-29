@@ -16,15 +16,68 @@ import (
 )
 
 var (
-	sessionCREATE    = spec.NewOperation("sessionCreate")
-	sessionREAD      = spec.NewOperation("sessionRead")
-	sessionTERMINATE = spec.NewOperation("sessionTerminate")
+	// operation
+	operationCreate = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "sessionCreate",
+			Consumes: []string{"application/x-www-form-urlencoded"},
+			Produces: []string{"application/json"},
+			Parameters: []spec.Parameter{
+				parameterAccountName,
+				parameterAccountPassword,
+			},
+		},
+	}
+	operationRead = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "sessionRead",
+			Produces: []string{"application/json"},
+			Parameters: []spec.Parameter{
+				parameterAccountName,
+			},
+		},
+	}
+	operationTerminate = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "sessionTerminate",
+			Produces: []string{"application/json"},
+			Parameters: []spec.Parameter{
+				parameterAccountName,
+			},
+		},
+	}
+	// parameter
+	parameterAccountName = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:     "name",
+			In:       "path",
+			Required: true,
+			Schema: &spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					MinLength: &[]int64{int64(policy.Account.LengthMinimum)}[0],
+					MaxLength: &[]int64{int64(policy.Account.LengthMaximum)}[0],
+					Pattern:   policy.Account.Pattern,
+				},
+			},
+		},
+	}
+	parameterAccountPassword = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:     "p",
+			In:       "formData",
+			Required: true,
+			Schema: &spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					MinLength: &[]int64{int64(policy.Password.LengthMinimum)}[0],
+					MaxLength: &[]int64{int64(policy.Password.LengthMaximum)}[0],
+					Pattern:   policy.Password.Pattern,
+				},
+			},
+		},
+	}
 	// reader
 	accountReader security.AccountReader
 	roleReader    security.RoleReader
-	// parameter
-	accountParameterName     spec.Parameter
-	accountParameterPassword spec.Parameter
 )
 
 // HandlerFunc checks session cookie and CSRF header
@@ -58,60 +111,38 @@ func HandlerFunc(f http.HandlerFunc) http.HandlerFunc {
 		f(w, r)
 	}
 }
-
-func RegisterHttpHandler(paths spec.Paths, ar security.AccountReader, rr security.RoleReader) {
+// HandlePath registers http.HandleFunc and spec.Operation for paths
+func HandlePath(paths spec.Paths, ar security.AccountReader, rr security.RoleReader) {
 	accountReader = ar
 	roleReader = rr
 	p := "/session"
 	http.HandleFunc(p, HandlerFunc(serveHTTP))
 	paths.Paths[p] = spec.PathItem{
 		PathItemProps: spec.PathItemProps{
-			Get:    sessionREAD,
-			Delete: sessionTERMINATE,
+			Get:    operationRead,
+			Delete: operationTerminate,
 		},
 	}
 	p = "/session/{name}"
-	rest.PathHandlerFunc(p, rest.PasswordHandlerFunc(ar, serveHTTP))
+	rest.PathHandlerFunc(p, rest.PasswordHandlerFunc(ar, serveHTTPparameter))
 	paths.Paths[p] = spec.PathItem{
 		PathItemProps: spec.PathItemProps{
-			Post: sessionCREATE,
+			Post: operationCreate,
 		},
 	}
-	accountParameterName = spec.Parameter{
-		ParamProps: spec.ParamProps{
-			Name:     "name",
-			In:       "path",
-			Required: true,
-			Schema: &spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					MinLength: &[]int64{2}[0],
-					MaxLength: &[]int64{256}[0],
-					Pattern:   "[0-9a-fA-F]",
-				},
-			},
-		},
-	}
-	accountParameterPassword = spec.Parameter{
-		ParamProps: spec.ParamProps{
-			Name:     "p",
-			In:       "formData",
-			Required: true,
-			Schema: &spec.Schema{
-				SchemaProps: spec.SchemaProps{
-					MinLength: &[]int64{int64(policy.Password.LengthMinimum)}[0],
-					MaxLength: &[]int64{int64(policy.Password.LengthMaximum)}[0],
-					Pattern:   policy.Password.Pattern,
-				},
-			},
-		},
-	}
-	sessionCREATE.Parameters = append(sessionCREATE.Parameters, accountParameterName)
-	sessionCREATE.Consumes = []string{"application/x-www-form-urlencoded"}
-	sessionCREATE.Parameters = append(sessionCREATE.Parameters, accountParameterPassword)
 }
 
 func serveHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
+	case "GET":
+		v := r.Context().Value("session.context")
+		ss, ok := v.(*security.Session)
+		if !ok && rest.Errored(w, rest.ErrUnauthorized) {
+			return
+		}
+		// remove CSRF, once per session
+		ss.Csrf = ""
+		rest.WriteProto(w, ss)
 	case "DELETE":
 		err := authorize(r.Context(), security.Session_TERMINATE)
 		if rest.Errored(w, err) {
@@ -125,17 +156,13 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		ss.State = transition(ss.State, security.Session_TERMINATE)
 		s.deleteSession(ss.Id)
 		w.WriteHeader(http.StatusNoContent)
-	case "GET":
-		v := r.Context().Value("session.context")
-		ss, ok := v.(*security.Session)
-		if !ok && rest.Errored(w, rest.ErrUnauthorized) {
-			return
-		}
-		// remove CSRF, once per session
-		ss.Csrf = ""
-		rest.WriteProto(w, ss)
+	}
+}
+
+func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
 	case "POST":
-		n, err := rest.ValidateParameter(*r, accountParameterName)
+		n, err := rest.ValidateParameter(*r, parameterAccountName)
 		if rest.Errored(w, err) {
 			return
 		}
@@ -204,7 +231,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		http.SetCookie(w, &c)
 		ss.Id = "" // do not expose
-		rest.WriteProto(w, &ss)
+		rest.WriteProtoCreated(w, &ss, "/session")
 	}
 }
 

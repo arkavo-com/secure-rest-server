@@ -14,72 +14,87 @@ import (
 )
 
 var (
-	roleCREATE     = spec.NewOperation("roleCreate")
-	roleREAD       = spec.NewOperation("roleRead")
-	roleREADAll    = spec.NewOperation("roleReadAll")
-	roleUPDATE     = spec.NewOperation("roleUpdate")
-	roleDELETE     = spec.NewOperation("roleDelete")
-	roleACTIVATE   = spec.NewOperation("roleActivate")
-	roleDEACTIVATE = spec.NewOperation("roleDeactivate")
-	// parameters
-	roleParameterName   spec.Parameter
-	roleParameterUpdate spec.Parameter
-)
-
-func RegisterHttpHandler(paths spec.Paths) {
-	p := "/role"
-	http.HandleFunc(p, session.HandlerFunc(serveHTTP))
-	paths.Paths[p] = spec.PathItem{
-		PathItemProps: spec.PathItemProps{
-			Get:  roleREADAll,
-			Post: roleCREATE,
+	// operation
+	operationCreate = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:          "roleCreate",
+			Description: "",
+			Consumes:    []string{"application/json"},
+			Produces:    []string{"application/json"},
+			Parameters: []spec.Parameter{
+				rest.BodyParameter(spec.Schema{
+					SchemaProps: spec.SchemaProps{
+						Required:   []string{"name", "permissions"},
+						Properties: map[string]spec.Schema{},
+					},
+				}),
+			},
 		},
 	}
-	roleCREATE.Parameters = append(roleCREATE.Parameters, rest.BodyParameter(spec.Schema{
-		SchemaProps: spec.SchemaProps{
-			Required:   []string{"name", "permissions"},
-			Properties: map[string]spec.Schema{},
-		},
-	}))
-	roleCREATE.Consumes = []string{"application/json"}
-	roleCREATE.Produces = []string{"application/json"}
-	p = "/role/{name}"
-	rest.PathHandlerFunc(p, session.HandlerFunc(serveHTTPparameter))
-	paths.Paths[p] = spec.PathItem{
-		PathItemProps: spec.PathItemProps{
-			Get:    roleREAD,
-			Put:    roleUPDATE,
-			Delete: roleDELETE,
+	operationRead = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "roleRead",
+			Produces: []string{"application/json"},
+			Parameters: []spec.Parameter{
+				parameterName,
+			},
 		},
 	}
-	roleUPDATE.Parameters = append(roleUPDATE.Parameters, roleParameterName)
-	roleUPDATE.Parameters = append(roleUPDATE.Parameters, roleParameterUpdate)
-	roleParameterUpdate = rest.BodyParameter(spec.Schema{
-		SchemaProps: spec.SchemaProps{
-			Required:   []string{"name", "permissions", "state"},
-			Properties: map[string]spec.Schema{},
-		},
-	})
-	p = "/role/{name}/ACTIVATE"
-	// FIXME
-	//rest.PathHandlerFunc(p, session.HandlerFunc(serveHTTP))
-	paths.Paths[p] = spec.PathItem{
-		PathItemProps: spec.PathItemProps{
-			Put: roleACTIVATE,
+	operationReadAll = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "roleReadAll",
+			Produces: []string{"application/json"},
 		},
 	}
-	p = "/role/{name}/DEACTIVATE"
-	// FIXME
-	//rest.PathHandlerFunc(p, session.HandlerFunc(serveHTTP))
-	paths.Paths[p] = spec.PathItem{
-		PathItemProps: spec.PathItemProps{
-			Put: roleDEACTIVATE,
+	operationUpdate = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID:       "roleUpdate",
+			Consumes: []string{"application/json"},
+			Produces: []string{"application/json"},
+			Parameters: []spec.Parameter{
+				parameterName,
+				parameterActivate,
+				parameterDeactivate,
+				{
+					ParamProps: spec.ParamProps{
+						Name: "body",
+						In:   "body",
+						Schema: &spec.Schema{
+							SchemaProps: spec.SchemaProps{
+								Required: []string{"name", "permissions", "state"},
+								Properties: map[string]spec.Schema{
+									"name": {
+										SwaggerSchemaProps: spec.SwaggerSchemaProps{
+											ReadOnly: true,
+										},
+									},
+									"state": {
+										SwaggerSchemaProps: spec.SwaggerSchemaProps{
+											ReadOnly: true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
-	roleParameterName = spec.Parameter{
+	operationDelete = &spec.Operation{
+		OperationProps: spec.OperationProps{
+			ID: "roleDelete",
+			Parameters: []spec.Parameter{
+				parameterName,
+			},
+		},
+	}
+	// parameter
+	parameterName = spec.Parameter{
 		ParamProps: spec.ParamProps{
-			Name: "name",
-			In:   "path",
+			Name:     "name",
+			In:       "path",
+			Required: true,
 			Schema: &spec.Schema{
 				SchemaProps: spec.SchemaProps{
 					MinLength: &[]int64{2}[0],
@@ -89,17 +104,68 @@ func RegisterHttpHandler(paths spec.Paths) {
 			},
 		},
 	}
+	parameterActivate = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:            security.Role_ACTIVATE.String(),
+			In:              "query",
+			AllowEmptyValue: true,
+			Required:        false,
+		},
+	}
+	parameterDeactivate = spec.Parameter{
+		ParamProps: spec.ParamProps{
+			Name:            security.Role_DEACTIVATE.String(),
+			In:              "query",
+			AllowEmptyValue: true,
+			Required:        false,
+		},
+	}
+)
+// HandlePath registers http.HandleFunc and spec.Operation for paths
+func HandlePath(paths spec.Paths) {
+	p := "/role"
+	http.HandleFunc(p, session.HandlerFunc(serveHTTP))
+	paths.Paths[p] = spec.PathItem{
+		PathItemProps: spec.PathItemProps{
+			Get:  operationReadAll,
+			Post: operationCreate,
+		},
+	}
+	p = "/role/{name}"
+	rest.PathHandlerFunc(p, session.HandlerFunc(serveHTTPparameter))
+	paths.Paths[p] = spec.PathItem{
+		PathItemProps: spec.PathItemProps{
+			Get:    operationRead,
+			Put:    operationUpdate,
+			Delete: operationDelete,
+		},
+	}
 }
 
 func serveHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
+	case "GET":
+		err := authorize(r.Context(), security.Role_READ)
+		if rest.Errored(w, err) {
+			return
+		}
+		// return all
+		roles, err := s.readRoles()
+		if rest.Errored(w, err) {
+			return
+		}
+		var pbs []proto.Message
+		for i := 0; i < len(roles); i++ {
+			pbs = append(pbs, roles[i])
+		}
+		rest.WriteProtos(w, pbs)
 	case "POST":
 		err := authorize(r.Context(), security.Role_CREATE)
 		if rest.Errored(w, err) {
 			return
 		}
 		var role security.Role
-		err = rest.Validate(r, roleCREATE, &role)
+		err = rest.Validate(r, operationCreate, &role)
 		if rest.Errored(w, err) {
 			return
 		}
@@ -117,22 +183,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		rest.WriteProto(w, &role)
-	case "GET":
-		err := authorize(r.Context(), security.Role_READ)
-		if rest.Errored(w, err) {
-			return
-		}
-		// return all
-		roles, err := s.readRoles()
-		if rest.Errored(w, err) {
-			return
-		}
-		pbs := make([]proto.Message, len(roles), len(roles))
-		for i := 0; i < len(roles); i++ {
-			pbs[i] = roles[i]
-		}
-		rest.WriteProtos(w, pbs)
+		rest.WriteProtoCreated(w, &role, r.RequestURI+"/"+role.Name)
 	}
 }
 
@@ -143,7 +194,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		n, err := rest.ValidateParameter(*r, roleParameterName)
+		n, err := rest.ValidateParameter(*r, parameterName)
 		if rest.Errored(w, err) {
 			return
 		}
@@ -157,27 +208,53 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 		if rest.Errored(w, err) {
 			return
 		}
-		_, err = rest.ValidateParameter(*r, roleParameterName)
+		n, err := rest.ValidateParameter(*r, parameterName)
 		if rest.Errored(w, err) {
 			return
 		}
-		role := security.Role{}
-		err = rest.Validate(r, roleCREATE, &role)
+		role, err := s.ReadRole(n)
 		if rest.Errored(w, err) {
 			return
 		}
-		err = s.updateRole(&role)
+		// action
+		action := rest.ValidateParameterQueryAction(*r, parameterActivate, parameterDeactivate)
+		if action != "" {
+			ns := transition(role.State, security.Role_Action(security.Role_Action_value[action]))
+			// if previous state then 304
+			if role.State == ns {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			role.State = ns
+		} else {
+			new := security.Role{}
+			err = rest.Validate(r, operationUpdate, &new)
+			if rest.Errored(w, err) {
+				return
+			}
+			role.Permissions = new.Permissions
+		}
+		err = s.updateRole(role)
 		if rest.Errored(w, err) {
 			return
 		}
-		rest.WriteProto(w, &role)
+		rest.WriteProto(w, role)
 	case "DELETE":
-		err := authorize(r.Context(), security.Role_UPDATE)
+		err := authorize(r.Context(), security.Role_DELETE)
 		if rest.Errored(w, err) {
 			return
 		}
-		n, err := rest.ValidateParameter(*r, roleParameterName)
+		n, err := rest.ValidateParameter(*r, parameterName)
 		if rest.Errored(w, err) {
+			return
+		}
+		role, err := s.ReadRole(n)
+		if rest.Errored(w, err) {
+			return
+		}
+		// only delete Deactivated
+		if role.State != security.Role_Deactivated {
+			w.WriteHeader(http.StatusNotModified)
 			return
 		}
 		err = s.deleteRole(n)

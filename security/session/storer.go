@@ -17,7 +17,7 @@ import (
 type storeProvider int
 
 const (
-	mongodbStore  storeProvider = iota + 1
+	mongodbStore storeProvider = iota + 1
 	postgresStore
 	redisStore
 	memdbStore
@@ -28,29 +28,56 @@ const (
 )
 
 var (
-	s           store
+	s store
+	// error
 	ErrNotFound = errors.New("not found")
 )
 
-func RegisterStoreProviderMgo(info *mgo.DialInfo) *store {
+// StoreMongo initializes store, call once
+func StoreMongo(session *mgo.Session) *store {
+	if s.provider != 0 {
+		return nil
+	}
 	s = store{
 		provider: mongodbStore,
-		database: info.Database,
+		mongo:    session,
 	}
-	s.mSession, _ = mgo.DialWithInfo(info)
 	return &s
 }
 
-func RegisterStoreProviderPostgres(db *sql.DB) *store {
+// StorePostgres initializes store, call once
+func StorePostgres(db *sql.DB) *store {
+	if s.provider != 0 {
+		return nil
+	}
 	s = store{
-		provider:   postgresStore,
-		postgresDB: db,
+		provider: postgresStore,
+		postgres: db,
 	}
 	return &s
 }
 
-// RegisterStoreProviderMemdb
-func RegisterStoreProviderMemdb() *store {
+// StoreRedis initializes store, call once
+func StoreRedis(c redis.Conn) *store {
+	if s.provider != 0 {
+		return nil
+	}
+	s = store{
+		provider: redisStore,
+		redis: &redis.Pool{
+			Dial: func() (redis.Conn, error) {
+				return c, nil
+			},
+		},
+	}
+	return &s
+}
+
+// StoreMem development use only.  Default user admin:nimda
+func StoreMem() *store {
+	if s.provider != 0 {
+		return nil
+	}
 	db, err := memdb.NewMemDB(&memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
 			collection: {
@@ -70,36 +97,25 @@ func RegisterStoreProviderMemdb() *store {
 	}
 	s = store{
 		provider: memdbStore,
-		database: collection,
 		mem:      db,
 	}
 	return &s
 }
 
-// RegisterStoreProviderRedis
-func RegisterStoreProviderRedis(c redis.Conn) *store {
-	s = store{
-		provider: redisStore,
-		redisPool: &redis.Pool{
-			Dial: func() (redis.Conn, error) {
-				return c, nil
-			},
-		},
-	}
-	return &s
-}
-
 type store struct {
-	provider   storeProvider
-	database   string
-	mSession   *mgo.Session
-	redisPool  *redis.Pool
-	mem        *memdb.MemDB
-	postgresDB *sql.DB
+	provider storeProvider
+	mongo    *mgo.Session
+	redis    *redis.Pool
+	mem      *memdb.MemDB
+	postgres *sql.DB
 }
 
 func (s *store) c() *mgo.Collection {
-	return s.mSession.Clone().DB(s.database).C(collection)
+	return s.mongo.Clone().DB("").C(collection)
+}
+
+func (s *store) get() redis.Conn {
+	return s.redis.Get()
 }
 
 func (s *store) createSession(ss security.Session) error {
@@ -111,7 +127,7 @@ func (s *store) createSession(ss security.Session) error {
 		if err != nil {
 			return err
 		}
-		_, err = s.redisPool.Get().Do("SET", ss.Id, b)
+		_, err = s.redis.Get().Do("SET", ss.Id, b)
 		return err
 	case memdbStore:
 		txn := s.mem.Txn(true)
@@ -133,7 +149,7 @@ func (s *store) readSession(si string) (*security.Session, error) {
 		err := s.c().Find(bson.M{"id": si}).One(&ss)
 		return &ss, err
 	case redisStore:
-		b, err := redis.Bytes(s.redisPool.Get().Do("GET", si))
+		b, err := redis.Bytes(s.redis.Get().Do("GET", si))
 		if err != nil {
 			return nil, err
 		}
@@ -163,7 +179,7 @@ func (s *store) deleteSession(id string) error {
 	case mongodbStore:
 		return s.c().Remove(bson.M{"id": id})
 	case redisStore:
-		_, err := s.redisPool.Get().Do("DEL", id)
+		_, err := s.redis.Get().Do("DEL", id)
 		return err
 	case memdbStore:
 		txn := s.mem.Txn(true)
