@@ -88,7 +88,7 @@ func Test_serveHTTPCreate(t *testing.T) {
 		Permissions: ps,
 	}))
 	// valid
-	rv := httptest.NewRequest("POST", "/account", strings.NewReader("{\"name\":\"test\",\"roles\":[\"Administrator\"]}"))
+	rv := httptest.NewRequest("POST", "/account", strings.NewReader("{\"name\":\"testaccount\",\"roles\":[\"Administrator\"]}"))
 	rv.Header.Set("content-type", "application/json")
 	rv = rv.WithContext(context.WithValue(rv.Context(), "session.context", &security.Session{
 		Permissions: ps,
@@ -134,13 +134,13 @@ func Test_serveHTTPCreateDuplicate(t *testing.T) {
 		},
 	}
 	// valid
-	rv := httptest.NewRequest("POST", "/account", strings.NewReader("{\"name\":\"test\",\"roles\":[\"Administrator\"]}"))
+	rv := httptest.NewRequest("POST", "/account", strings.NewReader("{\"name\":\"testaccount\",\"roles\":[\"Administrator\"]}"))
 	rv.Header.Set("content-type", "application/json")
 	rv = rv.WithContext(context.WithValue(rv.Context(), "session.context", &security.Session{
 		Permissions: ps,
 	}))
 	// duplicate
-	rd := httptest.NewRequest("POST", "/account", strings.NewReader("{\"name\":\"test\",\"roles\":[\"Administrator\"]}"))
+	rd := httptest.NewRequest("POST", "/account", strings.NewReader("{\"name\":\"testaccount\",\"roles\":[\"Administrator\"]}"))
 	rd.Header.Set("content-type", "application/json")
 	rd = rd.WithContext(context.WithValue(rd.Context(), "session.context", &security.Session{
 		Permissions: ps,
@@ -158,7 +158,7 @@ func Test_serveHTTPCreateDuplicate(t *testing.T) {
 		{"create account valid", args{
 			httptest.NewRecorder(),
 			rv,
-		}, 201, "{\"name\":\"test\",\"state\":\"Initialized\",\"roles\":[\"Administrator\"]}"},
+		}, 201, "{\"name\":\"testaccount\",\"state\":\"Initialized\",\"roles\":[\"Administrator\"]}"},
 		{"create account duplicate", args{
 			httptest.NewRecorder(),
 			rd,

@@ -9,13 +9,15 @@ import (
 
 var (
 	// ErrUnauthorized unauthorized error
-	ErrUnauthorized = errors.New("unauthorized")
+	ErrUnauthorized = errors.New(http.StatusText(http.StatusForbidden))
 	// ErrNotFound not found error
-	ErrNotFound = errors.New("not found")
+	ErrNotFound = errors.New(http.StatusText(http.StatusNotFound))
 	// ErrInvalid invalid error
 	ErrInvalid = errors.New("invalid")
 	// ErrDuplicate duplicate error
 	ErrDuplicate = errors.New("duplicate")
+	// ErrMethodNotAllowed HTTP method not allowed
+	ErrMethodNotAllowed = errors.New(http.StatusText(http.StatusMethodNotAllowed))
 )
 
 // Errored writes errors to the HTTP response writer
@@ -41,6 +43,9 @@ func Errored(w http.ResponseWriter, err error) bool {
 	case ErrNotFound:
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(http.StatusText(http.StatusNotFound)))
+	case ErrMethodNotAllowed:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte(http.StatusText(http.StatusMethodNotAllowed)))
 	default:
 		switch err.Error() {
 		case ErrDuplicate.Error():

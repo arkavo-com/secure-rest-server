@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
+	"regexp"
 	"strings"
 
 	"secure-rest-server/security/configuration"
@@ -16,43 +18,65 @@ import (
 
 // HandlerFunc writes the spec as json
 func HandlerFunc(paths spec.Paths) http.HandlerFunc {
+	definitions := definitions(paths)
+	securityDefinitions := make(map[string]*spec.SecurityScheme)
+	securityDefinitions["cookieAuth"] = &spec.SecurityScheme{
+		SecuritySchemeProps: spec.SecuritySchemeProps{
+			Type: "apiKey",
+			Name: "c",
+			In:   "cookie",
+		},
+	}
+	// swagger
+	swagger := &spec.Swagger{
+		SwaggerProps: spec.SwaggerProps{
+			Swagger: "2.0",
+			Host:    configuration.Server.Host,
+			Schemes: []string{"https"},
+			Info: &spec.Info{
+				InfoProps: spec.InfoProps{
+					Title:   "arkavo",
+					Version: "1.0.0",
+				},
+			},
+			Paths:       &paths,
+			Definitions: definitions,
+			Security: []map[string][]string{
+				{"cookieAuth": {}},
+			},
+			SecurityDefinitions: securityDefinitions,
+		},
+	}
+	s, err := json.Marshal(swagger)
 	return func(w http.ResponseWriter, r *http.Request) {
-		definitions := make(map[string]spec.Schema)
-		securityDefinitions := make(map[string]*spec.SecurityScheme)
-		securityDefinitions["cookieAuth"] = &spec.SecurityScheme{
-			SecuritySchemeProps: spec.SecuritySchemeProps{
-				Type: "apiKey",
-				Name: "c",
-				In:   "cookie",
-			},
-		}
-		// swagger
-		swagger := &spec.Swagger{
-			SwaggerProps: spec.SwaggerProps{
-				Swagger: "2.0",
-				Host:    configuration.Server.Host,
-				Schemes: []string{"https"},
-				Info: &spec.Info{
-					InfoProps: spec.InfoProps{
-						Title:   "arkavo",
-						Version: "1.0.0",
-					},
-				},
-				Paths:       &paths,
-				Definitions: definitions,
-				Security: []map[string][]string{
-					{"cookieAuth": {}},
-				},
-				SecurityDefinitions: securityDefinitions,
-			},
-		}
-		s, err := json.Marshal(swagger)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		w.Write(s)
 	}
+}
+
+func definitions(paths spec.Paths) map[string]spec.Schema {
+	definitions := make(map[string]spec.Schema)
+	for _, pathItem := range paths.Paths {
+		var operations []*spec.Operation
+		operations = append(operations, pathItem.Get, pathItem.Put, pathItem.Delete, pathItem.Post)
+		for _, operation := range operations {
+			if operation == nil {
+				continue
+			}
+			for _, parameter := range operation.Parameters {
+				if parameter.Schema == nil {
+					continue
+				}
+				definitions[operation.ID+"-"+parameter.Name] = *(parameter.Schema)
+				parameter.Ref = spec.MustCreateRef("#/definitions/" + operation.ID + "-" + parameter.Name)
+				parameter.Schema = nil
+			}
+		}
+	}
+	return definitions
 }
 
 // ValidationError with JSON tags
@@ -170,6 +194,75 @@ func Validate(r *http.Request, o *spec.Operation, pb proto.Message) error {
 						Property: require,
 						Rule:     "Required",
 					})
+				}
+			}
+			for k, schema := range p.Schema.Properties {
+				if schema.Type.Contains("string") {
+					var v string
+					err = json.Unmarshal(*jf[k], &v)
+					if err != nil {
+						log.Println(v, err)
+						errs = append(errs, ValidationError{
+							Property: k,
+							Rule:     "Unmarshal",
+						})
+					}
+					if schema.MinLength != nil && int64(len(v)) < *schema.MinLength {
+						errs = append(errs, ValidationError{
+							Property: k,
+							Rule:     "MinLength",
+						})
+						valid = false
+					}
+					if schema.MaxLength != nil && int64(len(v)) > *schema.MaxLength {
+						errs = append(errs, ValidationError{
+							Property: k,
+							Rule:     "MaxLength",
+						})
+						valid = false
+					}
+					if schema.Pattern != "" {
+						pattern := regexp.MustCompile(schema.Pattern)
+						if !pattern.MatchString(v) {
+							errs = append(errs, ValidationError{
+								Property: k,
+								Rule:     "Pattern",
+							})
+							valid = false
+						}
+					}
+				}
+				if schema.Type.Contains("array") {
+					var a []string
+					err = json.Unmarshal(*jf[k], &a)
+					if err != nil {
+						log.Println(a, err)
+						errs = append(errs, ValidationError{
+							Property: k,
+							Rule:     "Unmarshal",
+						})
+					}
+					if schema.MinItems != nil && int64(len(a)) < *schema.MinItems {
+						errs = append(errs, ValidationError{
+							Property: k,
+							Rule:     "MinItems",
+						})
+						valid = false
+					}
+				}
+				// reset read only fields
+				if schema.SwaggerSchemaProps.ReadOnly {
+					if "" != schema.SwaggerSchemaProps.Discriminator {
+						v := reflect.ValueOf(pb).Elem().FieldByName(schema.SwaggerSchemaProps.Discriminator)
+						if v.IsValid() {
+							switch k := v.Kind(); k {
+							case reflect.String:
+								v.SetString("")
+							case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+								v.SetInt(0)
+							}
+						}
+					}
 				}
 			}
 		}

@@ -29,8 +29,26 @@ var (
 					SchemaProps: spec.SchemaProps{
 						Required: []string{"name", "roles"},
 						Properties: map[string]spec.Schema{
-							"name":  {},
-							"roles": {},
+							"name": {
+								SchemaProps: spec.SchemaProps{
+									Type:      spec.StringOrArray([]string{"string"}),
+									MinLength: &[]int64{int64(policy.Account.LengthMinimum)}[0],
+									MaxLength: &[]int64{int64(policy.Account.LengthMaximum)}[0],
+									Pattern:   policy.Account.Pattern,
+								},
+							},
+							"roles": {
+								SchemaProps: spec.SchemaProps{
+									Type:     spec.StringOrArray([]string{"array"}),
+									MinItems: &[]int64{int64(1)}[0],
+								},
+							},
+							"state": {
+								SwaggerSchemaProps: spec.SwaggerSchemaProps{
+									ReadOnly:      true,
+									Discriminator: "State",
+								},
+							},
 						},
 					},
 				}),
@@ -77,12 +95,14 @@ var (
 									"name": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
 											ReadOnly: true,
+											Discriminator: "Name",
 										},
 									},
 									"roles": {},
 									"state": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
 											ReadOnly: true,
+											Discriminator: "State",
 										},
 									},
 								},
@@ -269,6 +289,8 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		rest.WriteProtoCreated(w, &a, r.RequestURI+"/"+a.Name)
+	default:
+		rest.Errored(w, rest.ErrMethodNotAllowed)
 	}
 }
 
@@ -347,6 +369,8 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	default:
+		rest.Errored(w, rest.ErrMethodNotAllowed)
 	}
 }
 
@@ -379,6 +403,8 @@ func serveHTTPpassword(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		rest.WriteProto(w, a)
+	default:
+		rest.Errored(w, rest.ErrMethodNotAllowed)
 	}
 }
 
