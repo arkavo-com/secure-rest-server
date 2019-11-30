@@ -14,7 +14,7 @@ import (
 	"net/url"
 	"strings"
 
-	"secure-rest-server/security"
+	"github.com/arkavo-com/secure-rest-server/security"
 )
 
 // HeaderHandler adds HTTP headers

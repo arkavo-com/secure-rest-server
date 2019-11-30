@@ -38,11 +38,19 @@ REST server focusing on security with minimal dependencies
 
 ---
 
+## Develop
+
+### Requirements
+
+- Protocol buffers - https://github.com/golang/protobuf#installation
+
 ### Build
 
-`glide install`
-
 `go install ./cmd/arkavo-server/...`
+
+### Test
+
+`go test ./...`
 
 #### Certificate
 `openssl genrsa -out server.key 2048`

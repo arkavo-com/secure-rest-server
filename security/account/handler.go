@@ -6,12 +6,11 @@ import (
 	"encoding/base32"
 	"net/http"
 
-	"secure-rest-server/security"
-	"secure-rest-server/security/authorization"
-	"secure-rest-server/security/policy"
-	"secure-rest-server/security/rest"
-	"secure-rest-server/security/session"
-
+	"github.com/arkavo-com/secure-rest-server/security"
+	"github.com/arkavo-com/secure-rest-server/security/authorization"
+	"github.com/arkavo-com/secure-rest-server/security/policy"
+	"github.com/arkavo-com/secure-rest-server/security/rest"
+	"github.com/arkavo-com/secure-rest-server/security/session"
 	"github.com/go-openapi/spec"
 	"github.com/golang/protobuf/proto"
 )
@@ -94,14 +93,14 @@ var (
 								Properties: map[string]spec.Schema{
 									"name": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
-											ReadOnly: true,
+											ReadOnly:      true,
 											Discriminator: "Name",
 										},
 									},
 									"roles": {},
 									"state": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
-											ReadOnly: true,
+											ReadOnly:      true,
 											Discriminator: "State",
 										},
 									},

@@ -4,8 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"secure-rest-server/security"
-
+	"github.com/arkavo-com/secure-rest-server/security"
 	"github.com/golang/protobuf/jsonpb"
 )
 
@@ -33,9 +32,9 @@ func init() {
 func getSet(httpClient httpGetter) {
 	// default
 	Account = security.Policy_Account{
-		LengthMinimum: 5,
-		LengthMaximum: 128,
-		Pattern:       "[a-zA-Z0-9_@.-]",
+		LengthMinimum:                         5,
+		LengthMaximum:                         128,
+		Pattern:                               "[a-zA-Z0-9_@.-]",
 		InactiveDurationConsequenceLock:       "90d",
 		InactiveDurationConsequenceDeactivate: "180d",
 	}

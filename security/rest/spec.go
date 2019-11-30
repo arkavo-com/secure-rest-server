@@ -9,8 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"secure-rest-server/security/configuration"
-
+	"github.com/arkavo-com/secure-rest-server/security/configuration"
 	"github.com/go-openapi/spec"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"

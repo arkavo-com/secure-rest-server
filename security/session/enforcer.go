@@ -1,10 +1,10 @@
 package session
 
 import (
-	"secure-rest-server/security"
-	"secure-rest-server/security/policy"
-
 	"strings"
+
+	"github.com/arkavo-com/secure-rest-server/security"
+	"github.com/arkavo-com/secure-rest-server/security/policy"
 )
 
 // enforceAuthenticateInitial checks initial login. returns roles

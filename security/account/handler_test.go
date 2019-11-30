@@ -8,8 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"secure-rest-server/security"
-
+	"github.com/arkavo-com/secure-rest-server/security"
 	"github.com/go-openapi/spec"
 )
 
@@ -174,7 +173,7 @@ func Test_serveHTTPCreateDuplicate(t *testing.T) {
 				t.Errorf("status code = %v, want %v", tt.args.w.Code, tt.want)
 			}
 			if tt.args.w.Body.String() != tt.body {
-				t.Error("bad body", tt.args.w.Body.String())
+				t.Error("bad body", tt.args.w.Body.String(), tt.body)
 			}
 		})
 	}

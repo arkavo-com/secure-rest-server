@@ -7,11 +7,10 @@ import (
 	"log"
 	"net/http"
 
-	"secure-rest-server/security"
-	"secure-rest-server/security/authorization"
-	"secure-rest-server/security/policy"
-	"secure-rest-server/security/rest"
-
+	"github.com/arkavo-com/secure-rest-server/security"
+	"github.com/arkavo-com/secure-rest-server/security/authorization"
+	"github.com/arkavo-com/secure-rest-server/security/policy"
+	"github.com/arkavo-com/secure-rest-server/security/rest"
 	"github.com/go-openapi/spec"
 )
 
