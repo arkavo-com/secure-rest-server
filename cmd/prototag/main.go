@@ -137,10 +137,10 @@ func main() {
 		fset = token.NewFileSet()
 		// .pm.go output file
 		pmf, err := os.Create(strings.Replace(path, ".pb.", ".pm.", 1))
-		defer pmf.Close()
 		if err != nil {
 			return fmt.Errorf("could not open output file: %v", err)
 		}
+		defer pmf.Close()
 		// print
 		err = printer.Fprint(pmf, fset, &v.pmFile)
 		if err != nil {

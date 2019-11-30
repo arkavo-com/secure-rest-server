@@ -289,10 +289,19 @@ func Test_authorize(t *testing.T) {
 		ctx context.Context
 		a   security.Account_Action
 	}
-	var tests []struct {
+	tests := []struct {
 		name    string
 		args    args
 		wantErr bool
+	}{
+		{
+			name: "authorize bad context",
+			args: args{
+				ctx: context.TODO(),
+				a:   security.Account_READ,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

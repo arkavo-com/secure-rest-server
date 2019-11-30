@@ -88,9 +88,6 @@ func PasswordHandlerFunc(accountReader security.AccountReader, f http.HandlerFun
 				break //return ErrNoPassword
 			}
 			an := r.Form.Get("name")
-			if err != nil {
-				break //return err
-			}
 			ac, err := accountReader.ReadAccount(an)
 			if err != nil {
 				break //return err

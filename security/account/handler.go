@@ -30,7 +30,7 @@ var (
 						Properties: map[string]spec.Schema{
 							"name": {
 								SchemaProps: spec.SchemaProps{
-									Type:      spec.StringOrArray([]string{"string"}),
+									Type:      []string{"string"},
 									MinLength: &[]int64{int64(policy.Account.LengthMinimum)}[0],
 									MaxLength: &[]int64{int64(policy.Account.LengthMaximum)}[0],
 									Pattern:   policy.Account.Pattern,
@@ -38,7 +38,7 @@ var (
 							},
 							"roles": {
 								SchemaProps: spec.SchemaProps{
-									Type:     spec.StringOrArray([]string{"array"}),
+									Type:     []string{"array"},
 									MinItems: &[]int64{int64(1)}[0],
 								},
 							},
