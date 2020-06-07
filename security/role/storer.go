@@ -8,10 +8,10 @@ import (
 	"github.com/arkavo-com/secure-rest-server/security/rest"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
 	"github.com/lib/pq"
+	"google.golang.org/protobuf/proto"
 )
 
 type storeProvider int
@@ -52,7 +52,7 @@ func StoreMongo(session *mgo.Session) *Store {
 		provider: mongodbStore,
 		mongo:    session,
 	}
-	s.createRole(&administratorRole)
+	_ = s.createRole(&administratorRole)
 	return &s
 }
 
@@ -65,7 +65,7 @@ func StorePostgres(db *sql.DB) *Store {
 		provider: postgresStore,
 		postgres: db,
 	}
-	s.createRole(&administratorRole)
+	_ = s.createRole(&administratorRole)
 	return &s
 }
 
@@ -82,7 +82,7 @@ func StoreRedis(c redis.Conn) *Store {
 			},
 		},
 	}
-	s.createRole(&administratorRole)
+	_ = s.createRole(&administratorRole)
 	return &s
 }
 
@@ -112,7 +112,7 @@ func StoreMem() *Store {
 		provider: memdbStore,
 		mem:      db,
 	}
-	s.createRole(&administratorRole)
+	_ = s.createRole(&administratorRole)
 	return &s
 }
 

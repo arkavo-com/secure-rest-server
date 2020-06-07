@@ -12,7 +12,7 @@ import (
 	"github.com/arkavo-com/secure-rest-server/security/rest"
 	"github.com/arkavo-com/secure-rest-server/security/session"
 	"github.com/go-openapi/spec"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -273,7 +273,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		a.State = transition(a.State, security.Account_CREATE)
 		// salt
 		token := make([]byte, 32)
-		rand.Read(token)
+		_, _ = rand.Read(token)
 		a.Salt = base32.StdEncoding.EncodeToString(token)
 		err = s.createAccount(&a)
 		if err == rest.ErrDuplicate {

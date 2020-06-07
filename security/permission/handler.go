@@ -10,7 +10,7 @@ import (
 	"github.com/arkavo-com/secure-rest-server/security/rest"
 	"github.com/arkavo-com/secure-rest-server/security/session"
 	"github.com/go-openapi/spec"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 var (

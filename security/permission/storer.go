@@ -8,10 +8,10 @@ import (
 	"github.com/arkavo-com/secure-rest-server/security/rest"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
 	"github.com/lib/pq"
+	"google.golang.org/protobuf/proto"
 )
 
 type storeProvider int

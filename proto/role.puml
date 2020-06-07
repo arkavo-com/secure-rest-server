@@ -1,0 +1,7 @@
+@startuml
+title role
+[*] --> Initialized : CREATE
+Initialized --> Activated : ACTIVATE
+Activated --> Deactivated : DEACTIVATE
+Deactivated --> [*]
+@enduml

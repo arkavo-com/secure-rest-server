@@ -89,7 +89,7 @@ func HandlerFunc(f http.HandlerFunc) http.HandlerFunc {
 		if err != nil {
 			w.Header().Set("content-type", "text/plain")
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
+			_, _ = w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
 			log.Println("session missing")
 			return
 		}
@@ -98,14 +98,14 @@ func HandlerFunc(f http.HandlerFunc) http.HandlerFunc {
 		if err != nil {
 			w.Header().Set("content-type", "text/plain")
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
+			_, _ = w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
 			log.Println("session not found")
 			return
 		}
 		if enforceCsrf() && ss.Csrf != r.Header.Get("x-csrf-token") {
 			w.Header().Set("content-type", "text/plain")
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
+			_, _ = w.Write([]byte(http.StatusText(http.StatusUnauthorized)))
 			log.Println("csrf error", ss.Account)
 			return
 		}
@@ -157,7 +157,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ss.State = transition(ss.State, security.Session_TERMINATE)
-		s.deleteSession(ss.Id)
+		_ = s.deleteSession(ss.Id)
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -207,10 +207,10 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 			permissions = append(permissions, ro.Permissions...)
 		}
 		token := make([]byte, 32)
-		rand.Read(token)
+		_, _ = rand.Read(token)
 		csrf := make([]byte, 32)
 		rand.Read(csrf)
-		ss := security.Session{
+		ss := &security.Session{
 			Id:          base32.StdEncoding.EncodeToString(token),
 			Csrf:        base32.StdEncoding.EncodeToString(csrf),
 			Account:     ac.Name,
@@ -235,7 +235,7 @@ func serveHTTPparameter(w http.ResponseWriter, r *http.Request) {
 		}
 		http.SetCookie(w, &c)
 		ss.Id = "" // do not expose
-		rest.WriteProtoCreated(w, &ss, "/session")
+		rest.WriteProtoCreated(w, ss, "/session")
 	}
 }
 

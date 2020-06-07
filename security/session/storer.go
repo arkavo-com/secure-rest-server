@@ -8,9 +8,9 @@ import (
 	"github.com/arkavo-com/secure-rest-server/security/rest"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
+	"google.golang.org/protobuf/proto"
 )
 
 type storeProvider int
@@ -111,12 +111,12 @@ func (s *store) get() redis.Conn {
 	return s.redis.Get()
 }
 
-func (s *store) createSession(ss security.Session) error {
+func (s *store) createSession(ss *security.Session) error {
 	switch s.provider {
 	case mongodbStore:
 		return s.c().Insert(ss)
 	case redisStore:
-		b, err := proto.Marshal(&ss)
+		b, err := proto.Marshal(ss)
 		if err != nil {
 			return err
 		}

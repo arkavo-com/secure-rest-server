@@ -187,7 +187,7 @@ func main() {
 		}
 	}()
 	<-stop
-	server.Shutdown(context.Background())
+	_ = server.Shutdown(context.Background())
 }
 
 func dialPostgres(c security.Configuration_Store) (*sql.DB, error) {

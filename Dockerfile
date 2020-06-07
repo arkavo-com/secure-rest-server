@@ -1,7 +1,17 @@
-FROM golang:1.13-alpine as builder
-WORKDIR /build
-RUN apk add --update alpine-sdk
+ARG GO_VERSION=latest
+
+FROM golang:$GO_VERSION as builder
+WORKDIR /build/
 COPY . .
-ENTRYPOINT ["go", "build"]
-CMD ["-v", "-a", "-o", ".", "./..."]
-# "-race",  fails x86_64-alpine-linux-musl/8.3.0/
+RUN CGO_ENABLED=0 GOOS=linux go build -v -a -installsuffix cgo -o . ./...
+
+FROM golang:$GO_VERSION as tester
+WORKDIR /test/
+COPY . .
+RUN go test ./...
+RUN CGO_ENABLED=1 GOOS=linux go build -v -a -race -installsuffix cgo -o . ./...
+
+FROM scratch as runner
+EXPOSE 1337
+ENTRYPOINT ["/arkavo-server"]
+COPY --from=builder /build/arkavo-server /
