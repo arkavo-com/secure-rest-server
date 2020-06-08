@@ -8,8 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"secure-rest-server/security"
-
+	"github.com/arkavo-com/secure-rest-server/security"
 	"github.com/go-openapi/spec"
 )
 
@@ -120,6 +119,7 @@ func Test_serveHTTPCreate(t *testing.T) {
 			StoreMem()
 			serveHTTP(tt.args.w, tt.args.r)
 			if tt.args.w.Code != tt.want {
+				t.Log(tt.args.w.Body)
 				t.Errorf("status code = %v, want %v", tt.args.w.Code, tt.want)
 			}
 		})
@@ -158,7 +158,7 @@ func Test_serveHTTPCreateDuplicate(t *testing.T) {
 		{"create account valid", args{
 			httptest.NewRecorder(),
 			rv,
-		}, 201, "{\"name\":\"testaccount\",\"state\":\"Initialized\",\"roles\":[\"Administrator\"]}"},
+		}, 201, "{\"name\":\"testaccount\", \"state\":\"Initialized\", \"roles\":[\"Administrator\"]}"},
 		{"create account duplicate", args{
 			httptest.NewRecorder(),
 			rd,
@@ -174,7 +174,7 @@ func Test_serveHTTPCreateDuplicate(t *testing.T) {
 				t.Errorf("status code = %v, want %v", tt.args.w.Code, tt.want)
 			}
 			if tt.args.w.Body.String() != tt.body {
-				t.Error("bad body", tt.args.w.Body.String())
+				t.Errorf("body = %v, want %v", tt.args.w.Body, tt.body)
 			}
 		})
 	}
@@ -290,10 +290,19 @@ func Test_authorize(t *testing.T) {
 		ctx context.Context
 		a   security.Account_Action
 	}
-	var tests []struct {
+	tests := []struct {
 		name    string
 		args    args
 		wantErr bool
+	}{
+		{
+			name: "authorize bad context",
+			args: args{
+				ctx: context.TODO(),
+				a:   security.Account_READ,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

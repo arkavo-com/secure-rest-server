@@ -1,0 +1,10 @@
+@startuml
+title account
+[*] --> Initialized : CREATE
+Initialized --> Activated : ACTIVATE
+Initialized --> Activated : UPDATE_PASSWORD
+Activated --> Locked : LOCK
+Locked --> Deactivated : DEACTIVATE
+Locked --> Initialized : INITIALIZE
+Deactivated --> [*]
+@enduml

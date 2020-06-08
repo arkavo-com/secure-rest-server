@@ -3,48 +3,70 @@ package rest
 import (
 	"net/http"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"github.com/arkavo-com/secure-rest-server/security"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-// WriteProtos jsonpb marshal many protos
+// WriteProtos marshal many protos
 func WriteProtos(w http.ResponseWriter, pbs []proto.Message) {
-	marshaller := jsonpb.Marshaler{}
 	var err error
-	w.Write([]byte("["))
+	_, _ = w.Write([]byte("["))
 	length := len(pbs)
 	for index, pb := range pbs {
-		err = marshaller.Marshal(w, pb)
+		Redact(pb)
+		var b []byte
+		b, err = protojson.Marshal(pb)
+		if err != nil {
+			break
+		}
+		_, _ = w.Write(b)
 		if index < length-1 {
-			w.Write([]byte(","))
+			_, _ = w.Write([]byte(","))
 		}
 	}
-	if err == nil {
-		w.Write([]byte("]"))
-	} else {
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		_, _ = w.Write([]byte(err.Error()))
 	}
+	_, _ = w.Write([]byte("]"))
 }
 
 // WriteProto jsonpb marshal a proto
 func WriteProto(w http.ResponseWriter, pb proto.Message) {
-	marshaller := jsonpb.Marshaler{}
-	err := marshaller.Marshal(w, pb)
+	Redact(pb)
+	b, err := protojson.Marshal(pb)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		_, _ = w.Write([]byte(err.Error()))
 	}
+	_, _ = w.Write(b)
 }
 
 // WriteProtoCreated sets 201 and Location header
 func WriteProtoCreated(w http.ResponseWriter, pb proto.Message, location string) {
+	Redact(pb)
 	w.Header().Add("location", location)
 	w.WriteHeader(http.StatusCreated)
-	marshaller := jsonpb.Marshaler{}
-	err := marshaller.Marshal(w, pb)
+	b, err := protojson.Marshal(pb)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		_, _ = w.Write([]byte(err.Error()))
 	}
+	_, _ = w.Write(b)
+}
+
+// Redact clears every sensitive field in pb.
+func Redact(pb proto.Message) {
+	m := pb.ProtoReflect()
+	m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		opts := fd.Options().(*descriptorpb.FieldOptions)
+		if proto.GetExtension(opts, security.E_Sensitive).(bool) {
+			m.Clear(fd)
+			return true
+		}
+		return true
+	})
 }

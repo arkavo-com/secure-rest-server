@@ -4,15 +4,14 @@ import (
 	"database/sql"
 	"log"
 
-	"secure-rest-server/security"
-	"secure-rest-server/security/rest"
-
+	"github.com/arkavo-com/secure-rest-server/security"
+	"github.com/arkavo-com/secure-rest-server/security/rest"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
 	"github.com/lib/pq"
+	"google.golang.org/protobuf/proto"
 )
 
 type storeProvider int
@@ -98,7 +97,7 @@ func StoreMem() *Store {
 		provider: memdbStore,
 		mem:      db,
 	}
-	s.createAccount(&security.Account{
+	_ = s.createAccount(&security.Account{
 		Name:  "admin",
 		Hash:  "79657a17b98ec928ecb332a71aea22abb940efb04d281e07123a96f78b29eec3",
 		Roles: []string{"Administrator"},

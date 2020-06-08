@@ -3,17 +3,17 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"reflect"
 	"regexp"
 	"strings"
 
-	"secure-rest-server/security/configuration"
-
+	"github.com/arkavo-com/secure-rest-server/security/configuration"
 	"github.com/go-openapi/spec"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // HandlerFunc writes the spec as json
@@ -53,7 +53,7 @@ func HandlerFunc(paths spec.Paths) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Write(s)
+		_, _ = w.Write(s)
 	}
 }
 
@@ -172,7 +172,8 @@ func Validate(r *http.Request, o *spec.Operation, pb proto.Message) error {
 				})
 				break
 			}
-			err := jsonpb.Unmarshal(r.Body, pb)
+			b, err := ioutil.ReadAll(r.Body)
+			err = protojson.Unmarshal(b, pb)
 			valid = err == nil
 			if !valid {
 				log.Println(err)
@@ -182,10 +183,8 @@ func Validate(r *http.Request, o *spec.Operation, pb proto.Message) error {
 				})
 				break
 			}
-			marshaller := jsonpb.Marshaler{}
-			j, _ := marshaller.MarshalToString(pb)
 			var jf map[string]*json.RawMessage
-			json.Unmarshal([]byte(j), &jf)
+			_ = json.Unmarshal(b, &jf)
 			// required
 			for _, require := range p.Schema.Required {
 				if jf[require] == nil {

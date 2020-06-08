@@ -11,8 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"secure-rest-server/security"
-
+	"github.com/arkavo-com/secure-rest-server/security"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -3,8 +3,8 @@ package authorization
 import (
 	"context"
 
-	"secure-rest-server/security"
-	"secure-rest-server/security/rest"
+	"github.com/arkavo-com/secure-rest-server/security"
+	"github.com/arkavo-com/secure-rest-server/security/rest"
 )
 
 // Authorize checks context for allowed actions

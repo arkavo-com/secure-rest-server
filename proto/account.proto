@@ -1,15 +1,15 @@
 syntax = "proto3";
 
+import "data.proto";
+package security;
 option go_package = "security";
 
 // A system account to allow access for a subject
 message Account {
     // unique name
     string name = 1;
-    // `json:"-"`
-    string salt = 2;
-    // `json:"-"`
-    string hash = 3;
+    string salt = 2 [(security.data.sensitive) = true];
+    string hash = 3 [(security.data.sensitive) = true];
     State state = 4;
     // []role.proto:Role.name
     repeated string roles = 5;

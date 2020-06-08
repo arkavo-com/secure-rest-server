@@ -1,0 +1,9 @@
+@startuml
+title session
+[*] --> Activated : CREATE
+Activated --> Reduced : REDUCE
+Activated --> Reduced : IDLE
+Reduced --> Deactivated : EXPIRE
+Activated --> Deactivated : TERMINATE
+Deactivated --> [*]
+@enduml

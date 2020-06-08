@@ -1,0 +1,7 @@
+syntax = "proto3";
+import "google/protobuf/descriptor.proto";
+package security.data;
+option go_package = "security";
+extend google.protobuf.FieldOptions {
+    bool sensitive = 50000;
+}

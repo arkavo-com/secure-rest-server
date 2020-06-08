@@ -6,14 +6,13 @@ import (
 	"encoding/base32"
 	"net/http"
 
-	"secure-rest-server/security"
-	"secure-rest-server/security/authorization"
-	"secure-rest-server/security/policy"
-	"secure-rest-server/security/rest"
-	"secure-rest-server/security/session"
-
+	"github.com/arkavo-com/secure-rest-server/security"
+	"github.com/arkavo-com/secure-rest-server/security/authorization"
+	"github.com/arkavo-com/secure-rest-server/security/policy"
+	"github.com/arkavo-com/secure-rest-server/security/rest"
+	"github.com/arkavo-com/secure-rest-server/security/session"
 	"github.com/go-openapi/spec"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -31,7 +30,7 @@ var (
 						Properties: map[string]spec.Schema{
 							"name": {
 								SchemaProps: spec.SchemaProps{
-									Type:      spec.StringOrArray([]string{"string"}),
+									Type:      []string{"string"},
 									MinLength: &[]int64{int64(policy.Account.LengthMinimum)}[0],
 									MaxLength: &[]int64{int64(policy.Account.LengthMaximum)}[0],
 									Pattern:   policy.Account.Pattern,
@@ -39,7 +38,7 @@ var (
 							},
 							"roles": {
 								SchemaProps: spec.SchemaProps{
-									Type:     spec.StringOrArray([]string{"array"}),
+									Type:     []string{"array"},
 									MinItems: &[]int64{int64(1)}[0],
 								},
 							},
@@ -94,14 +93,14 @@ var (
 								Properties: map[string]spec.Schema{
 									"name": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
-											ReadOnly: true,
+											ReadOnly:      true,
 											Discriminator: "Name",
 										},
 									},
 									"roles": {},
 									"state": {
 										SwaggerSchemaProps: spec.SwaggerSchemaProps{
-											ReadOnly: true,
+											ReadOnly:      true,
 											Discriminator: "State",
 										},
 									},
@@ -274,7 +273,7 @@ func serveHTTP(w http.ResponseWriter, r *http.Request) {
 		a.State = transition(a.State, security.Account_CREATE)
 		// salt
 		token := make([]byte, 32)
-		rand.Read(token)
+		_, _ = rand.Read(token)
 		a.Salt = base32.StdEncoding.EncodeToString(token)
 		err = s.createAccount(&a)
 		if err == rest.ErrDuplicate {

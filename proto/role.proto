@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+package security;
 option go_package = "security";
 
 import "permission.proto";

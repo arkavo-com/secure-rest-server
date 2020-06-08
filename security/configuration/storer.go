@@ -4,8 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"secure-rest-server/security"
-
+	"github.com/arkavo-com/secure-rest-server/security"
 	"github.com/golang/protobuf/jsonpb"
 )
 
@@ -65,7 +64,7 @@ func getSet(httpClient httpGetter) {
 		Origin:      "https://localhost:3000",
 		Key:         "server.key",
 		Certificate: "server.pem",
-		Host: "localhost:1337",
+		Host:        "localhost:1337",
 	}
 	// get
 	r, err := httpClient.Get("http://127.0.0.1:8500/v1/kv/arkavo/configuration?raw")

@@ -11,14 +11,13 @@ import (
 	"os/signal"
 	"time"
 
-	"secure-rest-server/security"
-	"secure-rest-server/security/account"
-	"secure-rest-server/security/configuration"
-	"secure-rest-server/security/permission"
-	"secure-rest-server/security/rest"
-	"secure-rest-server/security/role"
-	"secure-rest-server/security/session"
-
+	"github.com/arkavo-com/secure-rest-server/security"
+	"github.com/arkavo-com/secure-rest-server/security/account"
+	"github.com/arkavo-com/secure-rest-server/security/configuration"
+	"github.com/arkavo-com/secure-rest-server/security/permission"
+	"github.com/arkavo-com/secure-rest-server/security/rest"
+	"github.com/arkavo-com/secure-rest-server/security/role"
+	"github.com/arkavo-com/secure-rest-server/security/session"
 	"github.com/globalsign/mgo"
 	"github.com/go-openapi/spec"
 	"github.com/gomodule/redigo/redis"
@@ -188,7 +187,7 @@ func main() {
 		}
 	}()
 	<-stop
-	server.Shutdown(context.Background())
+	_ = server.Shutdown(context.Background())
 }
 
 func dialPostgres(c security.Configuration_Store) (*sql.DB, error) {

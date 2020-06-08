@@ -4,15 +4,14 @@ import (
 	"database/sql"
 	"log"
 
-	"secure-rest-server/security"
-	"secure-rest-server/security/rest"
-
+	"github.com/arkavo-com/secure-rest-server/security"
+	"github.com/arkavo-com/secure-rest-server/security/rest"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
-	"github.com/golang/protobuf/proto"
 	"github.com/gomodule/redigo/redis"
 	"github.com/hashicorp/go-memdb"
 	"github.com/lib/pq"
+	"google.golang.org/protobuf/proto"
 )
 
 type storeProvider int
